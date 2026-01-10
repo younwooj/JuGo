@@ -104,3 +104,24 @@ enum Category {
   GIFT // 선물
   GOLD // 금
 }
+
+// ============================================
+// 금 시세 정보
+// ============================================
+model GoldRate {
+  id        String   @id @default(uuid())
+  date      DateTime @default(now())
+  
+  // 금 시세 정보 (원/g)
+  gold24K   Float    // 24K (순금)
+  gold18K   Float    // 18K
+  gold14K   Float    // 14K
+  
+  // 추가 정보
+  source    String   @default("KRX") // 데이터 출처
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([date])
+  @@map("gold_rates")
+}

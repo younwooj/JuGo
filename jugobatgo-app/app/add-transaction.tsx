@@ -17,6 +17,7 @@ import { transactionsApi } from '../src/api/transactions';
 import { ledgerApi } from '../src/api/ledger';
 import { contactsApi, Contact } from '../src/api/contacts';
 import { aiApi } from '../src/api/ai';
+import { getLatestGoldRate, convertGoldToKRW, convertKRWToGold } from '../src/api/gold';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
@@ -41,10 +42,23 @@ export default function AddTransactionScreen() {
   const [giftName, setGiftName] = useState('');
   const [memo, setMemo] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  
+  // 금 거래 전용 상태
+  const [goldKarat, setGoldKarat] = useState<'24K' | '18K' | '14K'>('24K');
+  const [goldWeight, setGoldWeight] = useState('');
+  const [goldPricePerGram, setGoldPricePerGram] = useState(0);
+  const [goldAutoConvert, setGoldAutoConvert] = useState(true);
 
   useEffect(() => {
     loadInitialData();
   }, []);
+  
+  useEffect(() => {
+    // 카테고리가 금으로 변경되면 최신 시세 불러오기
+    if (category === 'GOLD') {
+      loadGoldRate();
+    }
+  }, [category]);
 
   useEffect(() => {
     // 이름 입력 시 연락처 필터링
@@ -59,6 +73,14 @@ export default function AddTransactionScreen() {
       setShowContactPicker(false);
     }
   }, [contactName, contacts]);
+  
+  useEffect(() => {
+    // 금 무게 입력 시 자동 금액 계산
+    if (category === 'GOLD' && goldAutoConvert && goldWeight && goldPricePerGram > 0) {
+      const calculatedAmount = Math.round(parseFloat(goldWeight) * goldPricePerGram);
+      setAmount(calculatedAmount.toString());
+    }
+  }, [goldWeight, goldPricePerGram, goldKarat, goldAutoConvert, category]);
 
   const loadInitialData = async () => {
     try {
@@ -73,6 +95,26 @@ export default function AddTransactionScreen() {
       }
     } catch (error) {
       console.error('데이터 로딩 실패:', error);
+    }
+  };
+  
+  const loadGoldRate = async () => {
+    try {
+      const goldRate = await getLatestGoldRate();
+      switch (goldKarat) {
+        case '24K':
+          setGoldPricePerGram(goldRate.gold24K);
+          break;
+        case '18K':
+          setGoldPricePerGram(goldRate.gold18K);
+          break;
+        case '14K':
+          setGoldPricePerGram(goldRate.gold14K);
+          break;
+      }
+    } catch (error) {
+      console.error('금 시세 로딩 실패:', error);
+      Alert.alert('오류', '금 시세를 불러오지 못했습니다');
     }
   };
 
@@ -387,6 +429,82 @@ export default function AddTransactionScreen() {
           </View>
         )}
 
+        {/* 금 거래 전용 입력 폼 */}
+        {category === 'GOLD' && (
+          <>
+            {/* 금 순도 선택 */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>금 순도 *</Text>
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[styles.optionButton, goldKarat === '24K' && styles.optionButtonActive]}
+                  onPress={() => {
+                    setGoldKarat('24K');
+                    loadGoldRate();
+                  }}
+                >
+                  <Text style={[styles.optionText, goldKarat === '24K' && styles.optionTextActive]}>
+                    24K (순금)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.optionButton, goldKarat === '18K' && styles.optionButtonActive]}
+                  onPress={() => {
+                    setGoldKarat('18K');
+                    loadGoldRate();
+                  }}
+                >
+                  <Text style={[styles.optionText, goldKarat === '18K' && styles.optionTextActive]}>
+                    18K
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.optionButton, goldKarat === '14K' && styles.optionButtonActive]}
+                  onPress={() => {
+                    setGoldKarat('14K');
+                    loadGoldRate();
+                  }}
+                >
+                  <Text style={[styles.optionText, goldKarat === '14K' && styles.optionTextActive]}>
+                    14K
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 오늘의 금 시세 */}
+            <View style={styles.goldRateCard}>
+              <Text style={styles.goldRateTitle}>오늘의 금 시세 ({goldKarat})</Text>
+              <Text style={styles.goldRatePrice}>
+                {goldPricePerGram.toLocaleString()}원 / g
+              </Text>
+              <TouchableOpacity onPress={loadGoldRate}>
+                <Text style={styles.goldRateRefresh}>🔄 새로고침</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 금 무게 입력 */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>금 무게 (g)</Text>
+              <View style={styles.goldWeightRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="예: 3.75"
+                  value={goldWeight}
+                  onChangeText={setGoldWeight}
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.goldWeightUnit}>g (그램)</Text>
+              </View>
+              {goldWeight && goldPricePerGram > 0 && (
+                <Text style={styles.goldWeightHint}>
+                  💡 자동 계산: {(parseFloat(goldWeight) * goldPricePerGram).toLocaleString()}원
+                </Text>
+              )}
+            </View>
+          </>
+        )}
+
         {/* 장부 그룹 선택 */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>장부 그룹 *</Text>
@@ -586,5 +704,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ef4444',
+  },
+  // 금 거래 전용 스타일
+  goldRateCard: {
+    backgroundColor: '#fef3c7',
+    borderWidth: 2,
+    borderColor: '#fbbf24',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  goldRateTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+    marginBottom: 8,
+  },
+  goldRatePrice: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#b45309',
+    marginBottom: 8,
+  },
+  goldRateRefresh: {
+    fontSize: 14,
+    color: '#b45309',
+    textDecorationLine: 'underline',
+  },
+  goldWeightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  goldWeightUnit: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  goldWeightHint: {
+    fontSize: 14,
+    color: '#059669',
+    marginTop: 8,
+    fontWeight: '600',
   },
 });
