@@ -1,0 +1,6 @@
+# 프로젝트 루트 환경 설정 파일
+node_modules/
+.DS_Store
+.env
+.env.local
+*.log

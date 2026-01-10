@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 유저 정보
+// ============================================
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  socialProvider String         // KAKAO, NAVER, GOOGLE
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  
+  contacts       Contact[]
+  ledgerGroups   LedgerGroup[]
+  
+  @@map("users")
+}
+
+// ============================================
+// 연락처 (동기화된 지인 정보)
+// ============================================
+model Contact {
+  id            String        @id @default(uuid())
+  userId        String
+  name          String
+  phoneNumber   String
+  ledgerGroupId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerGroup   LedgerGroup?  @relation(fields: [ledgerGroupId], references: [id])
+  transactions  Transaction[]
+  
+  @@index([userId])
+  @@index([phoneNumber])
+  @@map("contacts")
+}
+
+// ============================================
+// 장부 그룹 (가족, 친구, 회사 등)
+// ============================================
+model LedgerGroup {
+  id           String        @id @default(uuid())
+  userId       String
+  name         String        // 예: 회사, 고등학교 친구
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts     Contact[]
+  transactions Transaction[]
+  
+  @@index([userId])
+  @@map("ledger_groups")
+}
+
+// ============================================
+// 거래 내역
+// ============================================
+model Transaction {
+  id            String          @id @default(uuid())
+  contactId     String
+  ledgerGroupId String
+  type          TransactionType // GIVE (줌), RECEIVE (받음)
+  category      Category        // CASH, GIFT, GOLD
+  amount        Float           // 환산 금액 (현금은 그대로, 선물/금은 추정치)
+  originalName  String?         // 선물명 (예: 정관장 홍삼)
+  goldInfo      Json?           // { purity: "24K", weight: 3.75, unit: "돈" }
+  memo          String?
+  eventDate     DateTime?       // 경조사 날짜
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  contact       Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  ledgerGroup   LedgerGroup     @relation(fields: [ledgerGroupId], references: [id], onDelete: Cascade)
+  
+  @@index([contactId])
+  @@index([ledgerGroupId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// ============================================
+// Enums
+// ============================================
+enum TransactionType {
+  GIVE    // 줌
+  RECEIVE // 받음
+}
+
+enum Category {
+  CASH // 현금
+  GIFT // 선물
+  GOLD // 금
+}
