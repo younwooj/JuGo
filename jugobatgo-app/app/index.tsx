@@ -2,26 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { transactionsApi, Transaction } from '../src/api/transactions';
+import { getJubadTemperature } from '../src/api/statistics';
+
+// 하드코딩된 userId (실제로는 인증에서 가져와야 함)
+const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [jubadTemperature, setJubadTemperature] = useState<number>(36.5);
 
   useEffect(() => {
-    loadTransactions();
+    loadData();
   }, []);
 
-  const loadTransactions = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await transactionsApi.getAll();
+      const [transactionsData, temperature] = await Promise.all([
+        transactionsApi.getAll(),
+        getJubadTemperature(DEMO_USER_ID),
+      ]);
       // 최신 3개만 표시
-      setTransactions(data.slice(0, 3));
+      setTransactions(transactionsData.slice(0, 3));
+      setJubadTemperature(temperature);
     } catch (err) {
-      console.error('거래 내역 로딩 실패:', err);
+      console.error('데이터 로딩 실패:', err);
       setError('데이터를 불러올 수 없습니다');
     } finally {
       setLoading(false);
@@ -48,7 +57,25 @@ export default function HomeScreen() {
   };
 
   const stats = calculateMonthlyStats();
-  const temperature = transactions.length > 0 ? Math.min(100, 50 + (stats.received - stats.given) / 10000) : 65;
+  
+  // 주밥 온도를 0~100 범위로 정규화 (실제 온도 30~42도를 백분율로 변환)
+  const temperaturePercentage = ((jubadTemperature - 30) / (42 - 30)) * 100;
+  
+  // 주밥 온도 색상
+  const getTemperatureColor = (temp: number) => {
+    if (temp >= 38) return '#ef4444'; // 뜨거움 (빨강)
+    if (temp >= 36.5) return '#f97316'; // 따뜻함 (주황)
+    if (temp >= 35) return '#fbbf24'; // 미지근함 (노랑)
+    return '#3b82f6'; // 차가움 (파랑)
+  };
+  
+  // 주밥 온도 메시지
+  const getTemperatureMessage = (temp: number) => {
+    if (temp >= 38) return '불타는 인간관계!';
+    if (temp >= 36.5) return '따뜻한 인간관계';
+    if (temp >= 35) return '평범한 인간관계';
+    return '차가운 인간관계';
+  };
 
   if (loading) {
     return (
@@ -63,7 +90,7 @@ export default function HomeScreen() {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadTransactions}>
+        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
           <Text style={styles.retryButtonText}>다시 시도</Text>
         </TouchableOpacity>
       </View>
@@ -80,22 +107,33 @@ export default function HomeScreen() {
 
       {/* 주받 온도계 */}
       <View style={styles.temperatureCard}>
-        <Text style={styles.cardTitle}>내 주받 온도</Text>
+        <Text style={styles.cardTitle}>내 주밥 온도</Text>
         
         {/* 온도계 바 */}
         <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${temperature}%` }]} />
+          <View style={[
+            styles.progressBar, 
+            { 
+              width: `${temperaturePercentage}%`,
+              backgroundColor: getTemperatureColor(jubadTemperature),
+            }
+          ]} />
         </View>
 
         {/* 온도 표시 */}
         <View style={styles.temperatureInfo}>
           <View>
-            <Text style={styles.temperatureValue}>{Math.round(temperature)}°</Text>
+            <Text style={[styles.temperatureValue, { color: getTemperatureColor(jubadTemperature) }]}>
+              {jubadTemperature}°C
+            </Text>
             <Text style={styles.temperatureStatus}>
-              {temperature > 60 ? '양호' : temperature > 40 ? '균형' : '주의'}
+              {getTemperatureMessage(jubadTemperature)}
             </Text>
           </View>
-          <TouchableOpacity style={styles.detailButton}>
+          <TouchableOpacity 
+            style={styles.detailButton}
+            onPress={() => router.push('/stats')}
+          >
             <Text style={styles.detailButtonText}>자세히 보기</Text>
           </TouchableOpacity>
         </View>
