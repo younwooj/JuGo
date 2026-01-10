@@ -8,13 +8,24 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { transactionsApi } from '../src/api/transactions';
 import { ledgerApi } from '../src/api/ledger';
+import { contactsApi, Contact } from '../src/api/contacts';
+
+// 하드코딩된 userId (실제로는 인증에서 가져와야 함)
+const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function AddTransactionScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [ledgerGroups, setLedgerGroups] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   
   // 폼 상태
   const [contactName, setContactName] = useState('');
@@ -27,25 +38,57 @@ export default function AddTransactionScreen() {
   const [selectedGroupId, setSelectedGroupId] = useState('');
 
   useEffect(() => {
-    loadLedgerGroups();
+    loadInitialData();
   }, []);
 
-  const loadLedgerGroups = async () => {
+  useEffect(() => {
+    // 이름 입력 시 연락처 필터링
+    if (contactName.length > 0) {
+      const filtered = contacts.filter(c => 
+        c.name.toLowerCase().includes(contactName.toLowerCase())
+      );
+      setFilteredContacts(filtered);
+      setShowContactPicker(filtered.length > 0);
+    } else {
+      setFilteredContacts([]);
+      setShowContactPicker(false);
+    }
+  }, [contactName, contacts]);
+
+  const loadInitialData = async () => {
     try {
-      const groups = await ledgerApi.getAll();
-      setLedgerGroups(groups);
-      if (groups.length > 0) {
-        setSelectedGroupId(groups[0].id);
+      const [groupsData, contactsData] = await Promise.all([
+        ledgerApi.getAll(),
+        contactsApi.getAll(),
+      ]);
+      setLedgerGroups(groupsData);
+      setContacts(contactsData);
+      if (groupsData.length > 0) {
+        setSelectedGroupId(groupsData[0].id);
       }
     } catch (error) {
-      console.error('장부 그룹 로딩 실패:', error);
+      console.error('데이터 로딩 실패:', error);
     }
+  };
+
+  const selectContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setContactName(contact.name);
+    setPhoneNumber(contact.phoneNumber);
+    if (contact.ledgerGroupId) {
+      setSelectedGroupId(contact.ledgerGroupId);
+    }
+    setShowContactPicker(false);
   };
 
   const handleSubmit = async () => {
     // 유효성 검사
     if (!contactName.trim()) {
       Alert.alert('오류', '이름을 입력해주세요');
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      Alert.alert('오류', '전화번호를 입력해주세요');
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
@@ -59,12 +102,17 @@ export default function AddTransactionScreen() {
 
     setLoading(true);
     try {
-      // TODO: 실제로는 먼저 Contact를 생성/검색해야 합니다
-      // 지금은 임시로 하드코딩된 contactId 사용
-      const demoContactId = '00000000-0000-0000-0000-000000000011';
+      // 연락처 찾거나 생성
+      const contact = await contactsApi.findOrCreate({
+        userId: DEMO_USER_ID,
+        name: contactName.trim(),
+        phoneNumber: phoneNumber.trim(),
+        ledgerGroupId: selectedGroupId,
+      });
 
+      // 거래 생성
       await transactionsApi.create({
-        contactId: demoContactId,
+        contactId: contact.id,
         ledgerGroupId: selectedGroupId,
         type,
         category,
@@ -78,18 +126,13 @@ export default function AddTransactionScreen() {
         {
           text: '확인',
           onPress: () => {
-            // 폼 초기화
-            setContactName('');
-            setPhoneNumber('');
-            setAmount('');
-            setGiftName('');
-            setMemo('');
-            setType('GIVE');
-            setCategory('CASH');
+            // 홈으로 이동
+            router.push('/');
           },
         },
       ]);
     } catch (error: any) {
+      console.error('거래 추가 실패:', error);
       Alert.alert('오류', error.message || '거래 추가에 실패했습니다');
     } finally {
       setLoading(false);
@@ -114,11 +157,26 @@ export default function AddTransactionScreen() {
             value={contactName}
             onChangeText={setContactName}
           />
+          {/* 연락처 자동완성 */}
+          {showContactPicker && filteredContacts.length > 0 && (
+            <View style={styles.contactPicker}>
+              {filteredContacts.slice(0, 5).map((contact) => (
+                <TouchableOpacity
+                  key={contact.id}
+                  style={styles.contactItem}
+                  onPress={() => selectContact(contact)}
+                >
+                  <Text style={styles.contactName}>{contact.name}</Text>
+                  <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* 전화번호 입력 */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>전화번호</Text>
+          <Text style={styles.label}>전화번호 *</Text>
           <TextInput
             style={styles.input}
             placeholder="예: 010-1234-5678"
@@ -349,5 +407,28 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  contactPicker: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+  },
+  contactItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  contactPhone: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
   },
 });
