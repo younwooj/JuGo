@@ -92,7 +92,8 @@ export class AiService {
       return estimation;
     } catch (error) {
       this.logger.error('AI 가격 추정 실패:', error);
-      throw new Error(`AI 분석 실패: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`AI 분석 실패: ${errorMessage}`);
     }
   }
 
@@ -132,7 +133,8 @@ export class AiService {
       return estimation;
     } catch (error) {
       this.logger.error('텍스트 기반 가격 추정 실패:', error);
-      throw new Error(`AI 분석 실패: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`AI 분석 실패: ${errorMessage}`);
     }
   }
 }

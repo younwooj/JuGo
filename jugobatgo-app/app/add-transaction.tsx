@@ -165,6 +165,14 @@ export default function AddTransactionScreen() {
 
     setLoading(true);
     try {
+      console.log('거래 추가 시작:', {
+        contactName,
+        phoneNumber,
+        amount,
+        type,
+        category,
+      });
+
       // 연락처 찾거나 생성
       const contact = await contactsApi.findOrCreate({
         userId: DEMO_USER_ID,
@@ -173,8 +181,10 @@ export default function AddTransactionScreen() {
         ledgerGroupId: selectedGroupId,
       });
 
+      console.log('연락처 확인/생성 완료:', contact.id);
+
       // 거래 생성
-      await transactionsApi.create({
+      const transaction = await transactionsApi.create({
         contactId: contact.id,
         ledgerGroupId: selectedGroupId,
         type,
@@ -185,18 +195,40 @@ export default function AddTransactionScreen() {
         eventDate: new Date().toISOString(),
       });
 
-      Alert.alert('성공', '거래가 추가되었습니다', [
-        {
-          text: '확인',
-          onPress: () => {
-            // 홈으로 이동
-            router.push('/');
+      console.log('거래 생성 완료:', transaction);
+
+      // 성공 알림
+      Alert.alert(
+        '✅ 추가 완료', 
+        `${type === 'GIVE' ? '준' : '받은'} 거래가 성공적으로 추가되었습니다.\n\n${contactName} - ${parseFloat(amount).toLocaleString()}원`,
+        [
+          {
+            text: '홈으로',
+            onPress: () => {
+              router.replace('/');
+            },
           },
-        },
-      ]);
+          {
+            text: '계속 추가',
+            onPress: () => {
+              // 폼 초기화
+              setContactName('');
+              setPhoneNumber('');
+              setAmount('');
+              setGiftName('');
+              setMemo('');
+              setSelectedContact(null);
+            },
+            style: 'cancel',
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('거래 추가 실패:', error);
-      Alert.alert('오류', error.message || '거래 추가에 실패했습니다');
+      Alert.alert(
+        '❌ 추가 실패', 
+        error.response?.data?.message || error.message || '거래 추가에 실패했습니다'
+      );
     } finally {
       setLoading(false);
     }
