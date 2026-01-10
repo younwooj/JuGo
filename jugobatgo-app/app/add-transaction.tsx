@@ -8,12 +8,15 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  FlatList,
+  Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { transactionsApi } from '../src/api/transactions';
 import { ledgerApi } from '../src/api/ledger';
 import { contactsApi, Contact } from '../src/api/contacts';
+import { aiApi } from '../src/api/ai';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
@@ -26,6 +29,8 @@ export default function AddTransactionScreen() {
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // 폼 상태
   const [contactName, setContactName] = useState('');
@@ -79,6 +84,64 @@ export default function AddTransactionScreen() {
       setSelectedGroupId(contact.ledgerGroupId);
     }
     setShowContactPicker(false);
+  };
+
+  const pickImage = async () => {
+    try {
+      // 권한 요청
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('권한 필요', '사진 라이브러리 접근 권한이 필요합니다');
+        return;
+      }
+
+      // 이미지 선택
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        setSelectedImage(imageUri);
+        
+        // AI 분석 시작
+        analyzeImage(imageUri);
+      }
+    } catch (error) {
+      console.error('이미지 선택 실패:', error);
+      Alert.alert('오류', '이미지 선택에 실패했습니다');
+    }
+  };
+
+  const analyzeImage = async (imageUri: string) => {
+    setIsAnalyzing(true);
+    try {
+      const estimation = await aiApi.estimateFromImage(imageUri);
+      
+      // 결과를 폼에 자동 입력
+      setGiftName(estimation.giftName);
+      setAmount(estimation.estimatedPrice.toString());
+      setCategory('GIFT');
+
+      Alert.alert(
+        'AI 분석 완료',
+        `선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`,
+        [{ text: '확인' }]
+      );
+    } catch (error: any) {
+      console.error('AI 분석 실패:', error);
+      Alert.alert(
+        '분석 실패',
+        error.message || 'AI 분석에 실패했습니다. 수동으로 입력해주세요.',
+      );
+    } finally {
+      setIsAnalyzing(false);
+      // 이미지는 분석 후 즉시 제거 (메모리 절약)
+      setSelectedImage(null);
+    }
   };
 
   const handleSubmit = async () => {
@@ -239,6 +302,31 @@ export default function AddTransactionScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* AI 이미지 분석 (선물/금 선택시) */}
+        {category !== 'CASH' && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>📸 AI 가격 추정</Text>
+            <TouchableOpacity
+              style={[styles.imagePickerButton, isAnalyzing && styles.imagePickerButtonDisabled]}
+              onPress={pickImage}
+              disabled={isAnalyzing}
+            >
+              {isAnalyzing ? (
+                <View style={styles.analyzingContainer}>
+                  <ActivityIndicator color="#ef4444" size="small" />
+                  <Text style={styles.analyzingText}>AI 분석 중...</Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.imagePickerIcon}>📷</Text>
+                  <Text style={styles.imagePickerText}>사진으로 가격 추정하기</Text>
+                  <Text style={styles.imagePickerSubtext}>선물 사진을 찍거나 선택하세요</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 금액 입력 */}
         <View style={styles.formGroup}>
@@ -430,5 +518,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 2,
+  },
+  imagePickerButton: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 2,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    padding: 24,
+    alignItems: 'center',
+  },
+  imagePickerButtonDisabled: {
+    opacity: 0.6,
+  },
+  imagePickerIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  imagePickerText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ef4444',
+    marginBottom: 4,
+  },
+  imagePickerSubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  analyzingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  analyzingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ef4444',
   },
 });
