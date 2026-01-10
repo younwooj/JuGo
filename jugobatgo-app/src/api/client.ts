@@ -2,7 +2,7 @@ import axios from 'axios';
 import { API_BASE_URL, Config } from '@/constants/Config';
 
 // Axios 인스턴스 생성
-export const apiClient = axios.create({
+const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: Config.REQUEST_TIMEOUT,
   headers: {
@@ -36,3 +36,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export default apiClient;
