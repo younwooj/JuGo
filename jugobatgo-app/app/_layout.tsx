@@ -79,6 +79,7 @@ export default function RootLayout() {
           setTokens(session.access_token, session.refresh_token);
         }
       }
+      // 게스트 사용자는 세션이 없어도 OK (Zustand store에서 관리)
     } catch (error) {
       console.error('Error checking session:', error);
     } finally {
