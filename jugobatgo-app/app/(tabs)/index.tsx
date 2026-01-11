@@ -128,8 +128,16 @@ export default function HomeScreen() {
     <ScrollView style={styles.container}>
       {/* 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>주고받고</Text>
-        <Text style={styles.headerSubtitle}>경조사 관리의 새로운 기준</Text>
+        <View>
+          <Text style={styles.headerTitle}>주고받고</Text>
+          <Text style={styles.headerSubtitle}>경조사 관리의 새로운 기준</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push('/settings')}
+        >
+          <Text style={styles.settingsIcon}>⚙️</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 주받 온도계 */}
@@ -330,6 +338,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 48,
     paddingBottom: 32,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsIcon: {
+    fontSize: 20,
   },
   headerTitle: {
     color: 'white',

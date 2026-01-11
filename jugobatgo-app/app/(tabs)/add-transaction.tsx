@@ -14,7 +14,6 @@ import {
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { transactionsApi } from '../../src/api/transactions';
-import { ledgerApi } from '../../src/api/ledger';
 import { contactsApi, Contact } from '../../src/api/contacts';
 import { aiApi } from '../../src/api/ai';
 import { getLatestGoldRate, convertGoldToKRW, convertKRWToGold } from '../../src/api/gold';
@@ -26,7 +25,6 @@ const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 export default function AddTransactionScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [ledgerGroups, setLedgerGroups] = useState<any[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [showContactPicker, setShowContactPicker] = useState(false);
@@ -37,14 +35,12 @@ export default function AddTransactionScreen() {
   const [isUploading, setIsUploading] = useState(false);
   
   // 폼 상태
-  const [contactName, setContactName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [type, setType] = useState<'GIVE' | 'RECEIVE'>('GIVE');
   const [category, setCategory] = useState<'CASH' | 'GIFT' | 'GOLD'>('CASH');
   const [amount, setAmount] = useState('');
   const [giftName, setGiftName] = useState('');
   const [memo, setMemo] = useState('');
-  const [selectedGroupId, setSelectedGroupId] = useState('');
   
   // 금 거래 전용 상태
   const [goldKarat, setGoldKarat] = useState<'24K' | '18K' | '14K'>('24K');
@@ -64,10 +60,11 @@ export default function AddTransactionScreen() {
   }, [category]);
 
   useEffect(() => {
-    // 이름 입력 시 연락처 필터링
-    if (contactName.length > 0) {
+    // 검색어로 연락처 필터링
+    if (searchQuery.length > 0) {
       const filtered = contacts.filter(c => 
-        c.name.toLowerCase().includes(contactName.toLowerCase())
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.phoneNumber.includes(searchQuery)
       );
       setFilteredContacts(filtered);
       setShowContactPicker(filtered.length > 0);
@@ -75,7 +72,7 @@ export default function AddTransactionScreen() {
       setFilteredContacts([]);
       setShowContactPicker(false);
     }
-  }, [contactName, contacts]);
+  }, [searchQuery, contacts]);
   
   useEffect(() => {
     // 금 무게 입력 시 자동 금액 계산
@@ -87,15 +84,8 @@ export default function AddTransactionScreen() {
 
   const loadInitialData = async () => {
     try {
-      const [groupsData, contactsData] = await Promise.all([
-        ledgerApi.getAll(),
-        contactsApi.getAll(),
-      ]);
-      setLedgerGroups(groupsData);
+      const contactsData = await contactsApi.getAll();
       setContacts(contactsData);
-      if (groupsData.length > 0) {
-        setSelectedGroupId(groupsData[0].id);
-      }
     } catch (err: any) {
       console.error('데이터 로딩 실패:', err);
       
@@ -107,10 +97,11 @@ export default function AddTransactionScreen() {
         errorMessage = '서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.';
       }
       
-      Alert.alert('오류', errorMessage, [
-        { text: '다시 시도', onPress: loadInitialData },
-        { text: '취소', style: 'cancel' },
-      ]);
+      if (Platform.OS === 'web') {
+        alert(errorMessage);
+      } else {
+        Alert.alert('오류', errorMessage);
+      }
     }
   };
   
@@ -138,17 +129,17 @@ export default function AddTransactionScreen() {
         errorMessage = '서버 응답 시간이 초과되었습니다.';
       }
       
-      Alert.alert('오류', errorMessage);
+      if (Platform.OS === 'web') {
+        alert(errorMessage);
+      } else {
+        Alert.alert('오류', errorMessage);
+      }
     }
   };
 
   const selectContact = (contact: Contact) => {
     setSelectedContact(contact);
-    setContactName(contact.name);
-    setPhoneNumber(contact.phoneNumber);
-    if (contact.ledgerGroupId) {
-      setSelectedGroupId(contact.ledgerGroupId);
-    }
+    setSearchQuery(contact.name);
     setShowContactPicker(false);
   };
 
@@ -157,7 +148,11 @@ export default function AddTransactionScreen() {
       // 권한 요청
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('권한 필요', '사진 라이브러리 접근 권한이 필요합니다');
+        if (Platform.OS === 'web') {
+          alert('사진 라이브러리 접근 권한이 필요합니다');
+        } else {
+          Alert.alert('권한 필요', '사진 라이브러리 접근 권한이 필요합니다');
+        }
         return;
       }
 
@@ -178,7 +173,11 @@ export default function AddTransactionScreen() {
       }
     } catch (error) {
       console.error('이미지 선택 실패:', error);
-      Alert.alert('오류', '이미지 선택에 실패했습니다');
+      if (Platform.OS === 'web') {
+        alert('이미지 선택에 실패했습니다');
+      } else {
+        Alert.alert('오류', '이미지 선택에 실패했습니다');
+      }
     }
   };
 
@@ -187,7 +186,11 @@ export default function AddTransactionScreen() {
       // 카메라 권한 요청
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다');
+        if (Platform.OS === 'web') {
+          alert('카메라 접근 권한이 필요합니다');
+        } else {
+          Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다');
+        }
         return;
       }
 
@@ -207,29 +210,38 @@ export default function AddTransactionScreen() {
       }
     } catch (error) {
       console.error('사진 촬영 실패:', error);
-      Alert.alert('오류', '사진 촬영에 실패했습니다');
+      if (Platform.OS === 'web') {
+        alert('사진 촬영에 실패했습니다');
+      } else {
+        Alert.alert('오류', '사진 촬영에 실패했습니다');
+      }
     }
   };
 
   const showImagePicker = () => {
-    Alert.alert(
-      '이미지 선택',
-      '어떤 방법으로 추가하시겠습니까?',
-      [
-        {
-          text: '카메라',
-          onPress: takePhoto,
-        },
-        {
-          text: '갤러리',
-          onPress: pickImage,
-        },
-        {
-          text: '취소',
-          style: 'cancel',
-        },
-      ]
-    );
+    if (Platform.OS === 'web') {
+      // 웹에서는 바로 갤러리 선택
+      pickImage();
+    } else {
+      Alert.alert(
+        '이미지 선택',
+        '어떤 방법으로 추가하시겠습니까?',
+        [
+          {
+            text: '카메라',
+            onPress: takePhoto,
+          },
+          {
+            text: '갤러리',
+            onPress: pickImage,
+          },
+          {
+            text: '취소',
+            style: 'cancel',
+          },
+        ]
+      );
+    }
   };
 
   const analyzeImageAndUpload = async (imageUri: string) => {
@@ -249,25 +261,37 @@ export default function AddTransactionScreen() {
       setAmount(estimation.estimatedPrice.toString());
       setCategory('GIFT');
 
-      Alert.alert(
-        'AI 분석 완료',
-        `선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`,
-        [{ text: '확인' }]
-      );
+      if (Platform.OS === 'web') {
+        alert(`AI 분석 완료\n\n선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`);
+      } else {
+        Alert.alert(
+          'AI 분석 완료',
+          `선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`,
+          [{ text: '확인' }]
+        );
+      }
     } catch (error: any) {
       console.error('처리 실패:', error);
       
       // 업로드는 성공했지만 AI 분석만 실패한 경우
       if (uploadedImageUrl) {
-        Alert.alert(
-          '이미지 업로드 완료',
-          'AI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.',
-        );
+        if (Platform.OS === 'web') {
+          alert('이미지 업로드 완료\n\nAI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.');
+        } else {
+          Alert.alert(
+            '이미지 업로드 완료',
+            'AI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.',
+          );
+        }
       } else {
-        Alert.alert(
-          '처리 실패',
-          error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.',
-        );
+        if (Platform.OS === 'web') {
+          alert(error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.');
+        } else {
+          Alert.alert(
+            '처리 실패',
+            error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.',
+          );
+        }
       }
     } finally {
       setIsAnalyzing(false);
@@ -277,47 +301,44 @@ export default function AddTransactionScreen() {
 
   const handleSubmit = async () => {
     // 유효성 검사
-    if (!contactName.trim()) {
-      Alert.alert('오류', '이름을 입력해주세요');
-      return;
-    }
-    if (!phoneNumber.trim()) {
-      Alert.alert('오류', '전화번호를 입력해주세요');
+    if (!selectedContact) {
+      if (Platform.OS === 'web') {
+        alert('연락처를 선택해주세요');
+      } else {
+        Alert.alert('오류', '연락처를 선택해주세요');
+      }
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('오류', '올바른 금액을 입력해주세요');
+      if (Platform.OS === 'web') {
+        alert('올바른 금액을 입력해주세요');
+      } else {
+        Alert.alert('오류', '올바른 금액을 입력해주세요');
+      }
       return;
     }
-    if (!selectedGroupId) {
-      Alert.alert('오류', '장부 그룹을 선택해주세요');
+    if (!selectedContact.ledgerGroupId) {
+      if (Platform.OS === 'web') {
+        alert('선택한 연락처에 장부 그룹이 설정되어 있지 않습니다.\n연락처 탭에서 장부 그룹을 설정해주세요.');
+      } else {
+        Alert.alert('오류', '선택한 연락처에 장부 그룹이 설정되어 있지 않습니다.\n연락처 탭에서 장부 그룹을 설정해주세요.');
+      }
       return;
     }
 
     setLoading(true);
     try {
       console.log('거래 추가 시작:', {
-        contactName,
-        phoneNumber,
+        contactId: selectedContact.id,
         amount,
         type,
         category,
       });
 
-      // 연락처 찾거나 생성
-      const contact = await contactsApi.findOrCreate({
-        userId: DEMO_USER_ID,
-        name: contactName.trim(),
-        phoneNumber: phoneNumber.trim(),
-        ledgerGroupId: selectedGroupId,
-      });
-
-      console.log('연락처 확인/생성 완료:', contact.id);
-
       // 거래 생성
       const transactionData: any = {
-        contactId: contact.id,
-        ledgerGroupId: selectedGroupId,
+        contactId: selectedContact.id,
+        ledgerGroupId: selectedContact.ledgerGroupId,
         type,
         category,
         amount: parseFloat(amount),
@@ -336,33 +357,50 @@ export default function AddTransactionScreen() {
       console.log('거래 생성 완료:', transaction);
 
       // 성공 알림
-      Alert.alert(
-        '✅ 추가 완료', 
-        `${type === 'GIVE' ? '준' : '받은'} 거래가 성공적으로 추가되었습니다.\n\n${contactName} - ${parseFloat(amount).toLocaleString()}원`,
-        [
-          {
-            text: '홈으로',
-            onPress: () => {
-              router.replace('/');
+      const confirmMessage = `${type === 'GIVE' ? '준' : '받은'} 거래가 성공적으로 추가되었습니다.\n\n${selectedContact.name} - ${parseFloat(amount).toLocaleString()}원`;
+      
+      if (Platform.OS === 'web') {
+        const continueAdding = confirm(`✅ 추가 완료\n\n${confirmMessage}\n\n계속 추가하시겠습니까?`);
+        if (continueAdding) {
+          // 폼 초기화
+          setSearchQuery('');
+          setSelectedContact(null);
+          setAmount('');
+          setGiftName('');
+          setMemo('');
+          setSelectedImage(null);
+          setUploadedImageUrl(null);
+        } else {
+          router.replace('/');
+        }
+      } else {
+        Alert.alert(
+          '✅ 추가 완료', 
+          confirmMessage,
+          [
+            {
+              text: '홈으로',
+              onPress: () => {
+                router.replace('/');
+              },
             },
-          },
-          {
-            text: '계속 추가',
-            onPress: () => {
-              // 폼 초기화
-              setContactName('');
-              setPhoneNumber('');
-              setAmount('');
-              setGiftName('');
-              setMemo('');
-              setSelectedContact(null);
-              setSelectedImage(null);
-              setUploadedImageUrl(null);
+            {
+              text: '계속 추가',
+              onPress: () => {
+                // 폼 초기화
+                setSearchQuery('');
+                setSelectedContact(null);
+                setAmount('');
+                setGiftName('');
+                setMemo('');
+                setSelectedImage(null);
+                setUploadedImageUrl(null);
+              },
+              style: 'cancel',
             },
-            style: 'cancel',
-          },
-        ]
-      );
+          ]
+        );
+      }
     } catch (error: any) {
       console.error('거래 추가 실패:', error);
       
@@ -377,7 +415,11 @@ export default function AddTransactionScreen() {
         errorMessage = error.message;
       }
       
-      Alert.alert('❌ 추가 실패', errorMessage);
+      if (Platform.OS === 'web') {
+        alert(`❌ 추가 실패\n\n${errorMessage}`);
+      } else {
+        Alert.alert('❌ 추가 실패', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -392,42 +434,72 @@ export default function AddTransactionScreen() {
       </View>
 
       <View style={styles.formContainer}>
-        {/* 이름 입력 */}
+        {/* 연락처 선택 */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>이름 *</Text>
+          <Text style={styles.label}>연락처 선택 *</Text>
           <TextInput
             style={styles.input}
-            placeholder="예: 김철수"
-            value={contactName}
-            onChangeText={setContactName}
+            placeholder="이름 또는 전화번호로 검색"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+          
+          {/* 선택된 연락처 표시 */}
+          {selectedContact && !showContactPicker && (
+            <View style={styles.selectedContact}>
+              <View style={styles.selectedContactInfo}>
+                <Text style={styles.selectedContactName}>{selectedContact.name}</Text>
+                <Text style={styles.selectedContactPhone}>{selectedContact.phoneNumber}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => {
+                  setSelectedContact(null);
+                  setSearchQuery('');
+                }}
+              >
+                <Text style={styles.clearButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
           {/* 연락처 자동완성 */}
           {showContactPicker && filteredContacts.length > 0 && (
             <View style={styles.contactPicker}>
-              {filteredContacts.slice(0, 5).map((contact) => (
-                <TouchableOpacity
-                  key={contact.id}
-                  style={styles.contactItem}
-                  onPress={() => selectContact(contact)}
-                >
-                  <Text style={styles.contactName}>{contact.name}</Text>
-                  <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
-                </TouchableOpacity>
-              ))}
+              <ScrollView style={styles.contactPickerScroll} nestedScrollEnabled>
+                {filteredContacts.slice(0, 10).map((contact) => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactItem}
+                    onPress={() => selectContact(contact)}
+                  >
+                    <View>
+                      <Text style={styles.contactName}>{contact.name}</Text>
+                      <Text style={styles.contactPhone}>{contact.phoneNumber}</Text>
+                    </View>
+                    {contact.ledgerGroupId ? (
+                      <View style={styles.contactBadge}>
+                        <Text style={styles.contactBadgeText}>✓</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.contactWarning}>
+                        <Text style={styles.contactWarningText}>!</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
-        </View>
-
-        {/* 전화번호 입력 */}
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>전화번호 *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="예: 010-1234-5678"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-          />
+          
+          {searchQuery && !showContactPicker && !selectedContact && (
+            <View style={styles.noResults}>
+              <Text style={styles.noResultsText}>검색 결과가 없습니다</Text>
+              <TouchableOpacity onPress={() => router.push('/contacts')}>
+                <Text style={styles.noResultsLink}>연락처 탭에서 추가하기 →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* 거래 유형 선택 */}
@@ -623,32 +695,6 @@ export default function AddTransactionScreen() {
           </>
         )}
 
-        {/* 장부 그룹 선택 */}
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>장부 그룹 *</Text>
-          <View style={styles.buttonGroup}>
-            {ledgerGroups.map((group) => (
-              <TouchableOpacity
-                key={group.id}
-                style={[
-                  styles.optionButton,
-                  selectedGroupId === group.id && styles.optionButtonActive,
-                ]}
-                onPress={() => setSelectedGroupId(group.id)}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    selectedGroupId === group.id && styles.optionTextActive,
-                  ]}
-                >
-                  {group.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* 메모 입력 */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>메모</Text>
@@ -764,18 +810,59 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  selectedContact: {
+    marginTop: 8,
+    backgroundColor: '#dbeafe',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectedContactInfo: {
+    flex: 1,
+  },
+  selectedContactName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e3a8a',
+    marginBottom: 2,
+  },
+  selectedContactPhone: {
+    fontSize: 14,
+    color: '#3b82f6',
+  },
+  clearButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#93c5fd',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearButtonText: {
+    color: '#1e3a8a',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   contactPicker: {
     backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
     marginTop: 4,
-    maxHeight: 200,
+    maxHeight: 250,
+  },
+  contactPickerScroll: {
+    maxHeight: 250,
   },
   contactItem: {
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   contactName: {
     fontSize: 16,
@@ -786,6 +873,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 2,
+  },
+  contactBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactBadgeText: {
+    color: '#16a34a',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  contactWarning: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactWarningText: {
+    color: '#b45309',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  noResults: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  noResultsLink: {
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: '600',
   },
   imagePickerButton: {
     backgroundColor: '#fef2f2',

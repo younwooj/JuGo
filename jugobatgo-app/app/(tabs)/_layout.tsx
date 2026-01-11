@@ -42,6 +42,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="contacts"
+        options={{
+          title: '연락처',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon name="contacts" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="add-transaction"
         options={{
           title: '추가',
@@ -62,10 +71,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: '설정',
-          tabBarIcon: ({ color, size}) => (
-            <TabBarIcon name="settings" color={color} size={size} />
-          ),
+          href: null, // 탭에 표시하지 않음 (헤더 버튼으로 이동)
         }}
       />
       <Tabs.Screen
@@ -83,6 +89,7 @@ function TabBarIcon({ name, color, size }: { name: string; color: string; size: 
   const icons: Record<string, string> = {
     home: '🏠',
     book: '📖',
+    contacts: '📇',
     'add-circle': '➕',
     'bar-chart': '📊',
     settings: '⚙️',
