@@ -4,7 +4,9 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
 
   // CORS 설정
   app.enableCors({
@@ -32,9 +34,10 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document);
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0'); // 모든 네트워크 인터페이스에서 수신
   console.log(`🚀 서버가 http://localhost:${port} 에서 실행 중입니다.`);
   console.log(`📚 API 문서: http://localhost:${port}/api-docs`);
+  console.log(`🌐 네트워크: 모든 인터페이스에서 수신 중 (0.0.0.0:${port})`);
 }
 
 bootstrap();

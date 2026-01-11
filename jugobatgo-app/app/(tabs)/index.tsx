@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { transactionsApi, Transaction } from '../src/api/transactions';
-import { getJubadTemperature } from '../src/api/statistics';
+import { BarChart } from 'react-native-gifted-charts';
+import { transactionsApi, Transaction } from '../../src/api/transactions';
+import { getJubadTemperature } from '../../src/api/statistics';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
@@ -29,9 +30,17 @@ export default function HomeScreen() {
       // 최신 3개만 표시
       setTransactions(transactionsData.slice(0, 3));
       setJubadTemperature(temperature);
-    } catch (err) {
+    } catch (err: any) {
       console.error('데이터 로딩 실패:', err);
-      setError('데이터를 불러올 수 없습니다');
+      
+      // 네트워크 에러인 경우 더 구체적인 메시지
+      if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
+        setError('연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.');
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.');
+      } else {
+        setError('데이터를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,6 +66,23 @@ export default function HomeScreen() {
   };
 
   const stats = calculateMonthlyStats();
+  
+  // 이번 달 통계를 바 차트용 데이터로 변환
+  const getBarChartData = () => {
+    return [
+      {
+        value: stats.given,
+        label: '준 금액',
+        frontColor: '#ef4444',
+        spacing: 2,
+      },
+      {
+        value: stats.received,
+        label: '받은 금액',
+        frontColor: '#3b82f6',
+      },
+    ];
+  };
   
   // 주밥 온도를 0~100 범위로 정규화 (실제 온도 30~42도를 백분율로 변환)
   const temperaturePercentage = ((jubadTemperature - 30) / (42 - 30)) * 100;
@@ -89,6 +115,7 @@ export default function HomeScreen() {
   if (error) {
     return (
       <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorIcon}>⚠️</Text>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadData}>
           <Text style={styles.retryButtonText}>다시 시도</Text>
@@ -143,6 +170,28 @@ export default function HomeScreen() {
       <View style={styles.summarySection}>
         <Text style={styles.sectionTitle}>이번 달 요약</Text>
         
+        {/* 바 차트 */}
+        {(stats.given > 0 || stats.received > 0) && (
+          <View style={styles.chartCard}>
+            <BarChart
+              data={getBarChartData()}
+              height={150}
+              barWidth={60}
+              spacing={40}
+              roundedTop
+              roundedBottom
+              hideRules
+              xAxisThickness={0}
+              yAxisThickness={0}
+              yAxisTextStyle={{ color: '#6b7280' }}
+              noOfSections={3}
+              maxValue={Math.max(stats.given, stats.received) * 1.2}
+              isAnimated
+              animationDuration={800}
+            />
+          </View>
+        )}
+        
         <View style={styles.summaryCards}>
           {/* 준 금액 */}
           <View style={[styles.summaryCard, styles.giveCard]}>
@@ -164,7 +213,7 @@ export default function HomeScreen() {
       <View style={styles.transactionSection}>
         <View style={styles.transactionHeader}>
           <Text style={styles.sectionTitle}>최근 거래</Text>
-          <TouchableOpacity onPress={loadTransactions}>
+          <TouchableOpacity onPress={loadData}>
             <Text style={styles.viewAllText}>새로고침</Text>
           </TouchableOpacity>
         </View>
@@ -244,10 +293,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
   },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
   errorText: {
     fontSize: 16,
     color: '#dc2626',
     marginBottom: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 24,
   },
   retryButton: {
     backgroundColor: '#ef4444',
@@ -349,6 +405,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
+  },
+  chartCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
   },
   summaryCards: {
     flexDirection: 'row',

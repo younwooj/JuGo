@@ -7,8 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { ledgerApi } from '../src/api/ledger';
-import { transactionsApi, Transaction } from '../src/api/transactions';
+import { ledgerApi } from '../../src/api/ledger';
+import { transactionsApi, Transaction } from '../../src/api/transactions';
 
 interface LedgerGroup {
   id: string;
@@ -31,6 +31,7 @@ export default function LedgerListScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<GroupStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -39,6 +40,7 @@ export default function LedgerListScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [groupsData, transactionsData] = await Promise.all([
         ledgerApi.getAll(),
         transactionsApi.getAll(),
@@ -47,8 +49,17 @@ export default function LedgerListScreen() {
       setGroups(groupsData);
       setTransactions(transactionsData);
       calculateStats(groupsData, transactionsData);
-    } catch (error) {
-      console.error('데이터 로딩 실패:', error);
+    } catch (err: any) {
+      console.error('데이터 로딩 실패:', err);
+      
+      // 네트워크 에러인 경우 더 구체적인 메시지
+      if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
+        setError('연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.');
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.');
+      } else {
+        setError('데이터를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,6 +119,18 @@ export default function LedgerListScreen() {
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color="#ef4444" />
         <Text style={styles.loadingText}>데이터 로딩 중...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+          <Text style={styles.retryButtonText}>다시 시도</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -214,6 +237,28 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6b7280',
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc2626',
+    marginBottom: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 24,
+  },
+  retryButton: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#ef4444',

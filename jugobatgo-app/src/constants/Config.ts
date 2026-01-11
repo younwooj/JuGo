@@ -36,5 +36,6 @@ export const Config = {
   APP_NAME: '주고받고',
   VERSION: '1.0.0',
   MAX_RETRY_COUNT: 3,
-  REQUEST_TIMEOUT: 10000, // 10초
+  REQUEST_TIMEOUT: 30000, // 30초 (타임아웃 증가)
+  RETRY_DELAY: 1000, // 재시도 간 지연 시간 (1초)
 };

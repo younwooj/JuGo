@@ -1,91 +1,100 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import React, { useEffect } from 'react';
+import { authApi, userApi } from '../src/api/auth';
+import { useAuthStore } from '../src/store/authStore';
 
-export default function TabLayout() {
+export default function RootLayout() {
+  const { user, isAuthenticated, setUser, setTokens, logout } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
+  const [isReady, setIsReady] = React.useState(false);
+
+  // 앱 시작 시 세션 확인
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  // 인증 상태 변경 감지
+  useEffect(() => {
+    const { data: authListener } = authApi.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+
+      if (session?.user) {
+        try {
+          // 백엔드에 사용자 프로필 생성/가져오기
+          const userProfile = await userApi.getOrCreateUserProfile(session.user);
+          
+          setUser({
+            id: userProfile.id,
+            email: userProfile.email,
+            socialProvider: userProfile.socialProvider,
+          });
+
+          if (session) {
+            setTokens(session.access_token, session.refresh_token);
+          }
+        } catch (error) {
+          console.error('Error syncing user profile:', error);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        logout();
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  // 인증 상태에 따른 라우팅
+  useEffect(() => {
+    if (!isReady) return;
+
+    const inAuthGroup = segments[0] === 'login';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // 로그인하지 않았으면 로그인 화면으로
+      router.replace('/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      // 로그인되어 있으면 메인 화면으로
+      router.replace('/');
+    }
+  }, [isAuthenticated, segments, isReady]);
+
+  async function checkSession() {
+    try {
+      const session = await authApi.getSession();
+      
+      if (session?.user) {
+        // 백엔드에 사용자 프로필 생성/가져오기
+        const userProfile = await userApi.getOrCreateUserProfile(session.user);
+        
+        setUser({
+          id: userProfile.id,
+          email: userProfile.email,
+          socialProvider: userProfile.socialProvider,
+        });
+
+        if (session) {
+          setTokens(session.access_token, session.refresh_token);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking session:', error);
+    } finally {
+      setIsReady(true);
+    }
+  }
+
+  if (!isReady) {
+    // 로딩 화면 (선택사항)
+    return null;
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#ef4444',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 10,
-          paddingTop: 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: '홈',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="home" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ledger"
-        options={{
-          title: '장부',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="book" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="add-transaction"
-        options={{
-          title: '추가',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="add-circle" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="stats"
-        options={{
-          title: '통계',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="bar-chart" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: '설정',
-          tabBarIcon: ({ color, size}) => (
-            <TabBarIcon name="settings" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tabs>
-  );
-}
-
-// 간단한 아이콘 컴포넌트 (실제로는 @expo/vector-icons 사용)
-function TabBarIcon({ name, color, size }: { name: string; color: string; size: number }) {
-  // 임시로 텍스트 기반 아이콘
-  const icons: Record<string, string> = {
-    home: '🏠',
-    book: '📖',
-    'add-circle': '➕',
-    'bar-chart': '📊',
-    settings: '⚙️',
-  };
-
-  return (
-    <div style={{ fontSize: size * 1.2 }}>
-      {icons[name] || '•'}
-    </div>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
   );
 }

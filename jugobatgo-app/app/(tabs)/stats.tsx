@@ -5,8 +5,10 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { LineChart, PieChart, BarChart } from 'react-native-gifted-charts';
 import {
   getUserStatistics,
   getCategoryStatistics,
@@ -16,7 +18,7 @@ import {
   CategoryStatistics,
   MonthlyStatistics,
   TopContact,
-} from '../src/api/statistics';
+} from '../../src/api/statistics';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
@@ -25,6 +27,7 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function StatsScreen() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStatistics | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStatistics | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStatistics | null>(null);
@@ -37,6 +40,7 @@ export default function StatsScreen() {
   const loadStatistics = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [userStats, catStats, monthStats, topCon] = await Promise.all([
         getUserStatistics(DEMO_USER_ID),
         getCategoryStatistics(DEMO_USER_ID),
@@ -47,8 +51,17 @@ export default function StatsScreen() {
       setCategoryStats(catStats);
       setMonthlyStats(monthStats);
       setTopContacts(topCon);
-    } catch (error) {
-      console.error('통계 로딩 실패:', error);
+    } catch (err: any) {
+      console.error('통계 로딩 실패:', err);
+      
+      // 네트워크 에러인 경우 더 구체적인 메시지
+      if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
+        setError('연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.');
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.');
+      } else {
+        setError('통계를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.');
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +83,51 @@ export default function StatsScreen() {
     return '❄️ 차가운 인간관계';
   };
 
+  // 카테고리별 파이 차트 데이터
+  const getPieChartData = () => {
+    if (!categoryStats) return [];
+
+    const data = [
+      {
+        value: categoryStats.CASH?.give + categoryStats.CASH?.receive || 0,
+        color: '#3b82f6',
+        text: '현금',
+      },
+      {
+        value: categoryStats.GIFT?.give + categoryStats.GIFT?.receive || 0,
+        color: '#ef4444',
+        text: '선물',
+      },
+      {
+        value: categoryStats.GOLD?.give + categoryStats.GOLD?.receive || 0,
+        color: '#fbbf24',
+        text: '금',
+      },
+    ];
+
+    return data.filter(item => item.value > 0);
+  };
+
+  // 월별 추이 라인 차트 데이터
+  const getLineChartData = () => {
+    if (!monthlyStats) return { giveData: [], receiveData: [] };
+
+    const months = Object.keys(monthlyStats).sort();
+    const giveData = months.map(month => ({
+      value: monthlyStats[month].give,
+      label: month.slice(5), // MM만 표시
+      dataPointText: `${(monthlyStats[month].give / 10000).toFixed(0)}만`,
+    }));
+
+    const receiveData = months.map(month => ({
+      value: monthlyStats[month].receive,
+      label: month.slice(5),
+      dataPointText: `${(monthlyStats[month].receive / 10000).toFixed(0)}만`,
+    }));
+
+    return { giveData, receiveData };
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -79,13 +137,32 @@ export default function StatsScreen() {
     );
   }
 
-  if (!stats || !categoryStats) {
+  if (error) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>통계를 불러올 수 없습니다</Text>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadStatistics}>
+          <Text style={styles.retryButtonText}>다시 시도</Text>
+        </TouchableOpacity>
       </View>
     );
   }
+
+  if (!stats || !categoryStats) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorText}>통계 데이터가 없습니다</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadStatistics}>
+          <Text style={styles.retryButtonText}>다시 시도</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const pieData = getPieChartData();
+  const { giveData, receiveData } = getLineChartData();
 
   return (
     <ScrollView style={styles.container}>
@@ -159,9 +236,99 @@ export default function StatsScreen() {
           </View>
         </View>
 
+        {/* 월별 추이 차트 */}
+        {giveData.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>📊 월별 추이</Text>
+            <Text style={styles.chartSubtitle}>최근 12개월 거래 내역</Text>
+            
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={receiveData}
+                data2={giveData}
+                height={220}
+                width={screenWidth - 80}
+                spacing={60}
+                initialSpacing={20}
+                color1="#10b981"
+                color2="#ef4444"
+                textColor1="#10b981"
+                textColor2="#ef4444"
+                dataPointsHeight={6}
+                dataPointsWidth={6}
+                dataPointsColor1="#10b981"
+                dataPointsColor2="#ef4444"
+                curved
+                thickness={3}
+                hideRules
+                hideYAxisText
+                yAxisColor="#e5e7eb"
+                xAxisColor="#e5e7eb"
+                xAxisLabelTextStyle={{ color: '#6b7280', fontSize: 10 }}
+                showVerticalLines
+                verticalLinesColor="rgba(229, 231, 235, 0.5)"
+                areaChart
+                startFillColor1="rgba(16, 185, 129, 0.2)"
+                startFillColor2="rgba(239, 68, 68, 0.2)"
+                endFillColor1="rgba(16, 185, 129, 0.05)"
+                endFillColor2="rgba(239, 68, 68, 0.05)"
+              />
+            </View>
+
+            <View style={styles.chartLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#10b981' }]} />
+                <Text style={styles.legendText}>받은 금액</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                <Text style={styles.legendText}>준 금액</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 카테고리별 파이 차트 */}
+        {pieData.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🎯 카테고리별 비중</Text>
+            <Text style={styles.chartSubtitle}>거래 유형별 분포</Text>
+
+            <View style={styles.pieChartContainer}>
+              <PieChart
+                data={pieData}
+                donut
+                radius={90}
+                innerRadius={60}
+                innerCircleColor="#fff"
+                centerLabelComponent={() => (
+                  <View style={styles.pieCenterLabel}>
+                    <Text style={styles.pieCenterText}>총계</Text>
+                    <Text style={styles.pieCenterValue}>
+                      {((stats.totalGiveAmount + stats.totalReceiveAmount) / 10000).toFixed(0)}만원
+                    </Text>
+                  </View>
+                )}
+              />
+            </View>
+
+            <View style={styles.pieChartLegend}>
+              {pieData.map((item, index) => (
+                <View key={index} style={styles.pieLegendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                  <Text style={styles.legendText}>{item.text}</Text>
+                  <Text style={styles.pieLegendValue}>
+                    {((item.value / (stats.totalGiveAmount + stats.totalReceiveAmount)) * 100).toFixed(0)}%
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* 카테고리별 통계 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>카테고리별</Text>
+          <Text style={styles.cardTitle}>💰 카테고리별 상세</Text>
           {Object.entries(categoryStats).map(([category, data]) => (
             <View key={category} style={styles.categoryItem}>
               <Text style={styles.categoryName}>
@@ -182,10 +349,15 @@ export default function StatsScreen() {
 
         {/* Top 연락처 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>많이 거래한 사람 Top 10</Text>
+          <Text style={styles.cardTitle}>👥 많이 거래한 사람 Top 10</Text>
           {topContacts.map((contact, index) => (
             <View key={contact.id} style={styles.contactItem}>
-              <View style={styles.contactRank}>
+              <View style={[
+                styles.contactRank,
+                index === 0 && { backgroundColor: '#fbbf24' },
+                index === 1 && { backgroundColor: '#9ca3af' },
+                index === 2 && { backgroundColor: '#d97706' },
+              ]}>
                 <Text style={styles.contactRankText}>{index + 1}</Text>
               </View>
               <View style={styles.contactInfo}>
@@ -214,7 +386,7 @@ export default function StatsScreen() {
 
         {/* 최근 거래 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>최근 거래</Text>
+          <Text style={styles.cardTitle}>📝 최근 거래</Text>
           {stats.recentTransactions.map((transaction) => (
             <View key={transaction.id} style={styles.transactionItem}>
               <View style={styles.transactionIcon}>
@@ -265,9 +437,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
   },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
   errorText: {
     fontSize: 16,
-    color: '#ef4444',
+    color: '#dc2626',
+    marginBottom: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 24,
+  },
+  retryButton: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#ef4444',
@@ -327,7 +517,67 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
+    marginBottom: 8,
+  },
+  chartSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
     marginBottom: 16,
+  },
+  chartContainer: {
+    marginVertical: 16,
+    alignItems: 'center',
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+    marginTop: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  pieChartContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  pieCenterLabel: {
+    alignItems: 'center',
+  },
+  pieCenterText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  pieCenterValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  pieChartLegend: {
+    marginTop: 16,
+  },
+  pieLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  pieLegendValue: {
+    marginLeft: 'auto',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
   },
   summaryGrid: {
     flexDirection: 'row',

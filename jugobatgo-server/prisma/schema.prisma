@@ -16,7 +16,8 @@ datasource db {
 model User {
   id             String         @id @default(uuid())
   email          String         @unique
-  socialProvider String         // KAKAO, NAVER, GOOGLE
+  socialProvider String         // KAKAO, NAVER, GOOGLE, email
+  supabaseUserId String?        @unique // Supabase Auth 사용자 ID (선택)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   

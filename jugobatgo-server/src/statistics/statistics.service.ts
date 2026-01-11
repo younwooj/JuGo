@@ -187,6 +187,7 @@ export class StatisticsService {
       },
       select: {
         eventDate: true,
+        createdAt: true, // fallback용 추가
         amount: true,
         type: true,
       },
@@ -200,7 +201,9 @@ export class StatisticsService {
     > = {};
 
     transactions.forEach((t) => {
-      const monthKey = t.eventDate.toISOString().slice(0, 7); // YYYY-MM
+      // eventDate가 null일 경우 createdAt 사용
+      const date = t.eventDate || t.createdAt;
+      const monthKey = date.toISOString().slice(0, 7); // YYYY-MM
       if (!monthlyStats[monthKey]) {
         monthlyStats[monthKey] = { give: 0, receive: 0, balance: 0 };
       }

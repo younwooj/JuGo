@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { transactionsApi } from '../src/api/transactions';
-import { ledgerApi } from '../src/api/ledger';
-import { contactsApi, Contact } from '../src/api/contacts';
-import { aiApi } from '../src/api/ai';
-import { getLatestGoldRate, convertGoldToKRW, convertKRWToGold } from '../src/api/gold';
+import { transactionsApi } from '../../src/api/transactions';
+import { ledgerApi } from '../../src/api/ledger';
+import { contactsApi, Contact } from '../../src/api/contacts';
+import { aiApi } from '../../src/api/ai';
+import { getLatestGoldRate, convertGoldToKRW, convertKRWToGold } from '../../src/api/gold';
+import { uploadImage } from '../../src/api/storage';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
@@ -31,7 +32,9 @@ export default function AddTransactionScreen() {
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   // 폼 상태
   const [contactName, setContactName] = useState('');
@@ -93,8 +96,21 @@ export default function AddTransactionScreen() {
       if (groupsData.length > 0) {
         setSelectedGroupId(groupsData[0].id);
       }
-    } catch (error) {
-      console.error('데이터 로딩 실패:', error);
+    } catch (err: any) {
+      console.error('데이터 로딩 실패:', err);
+      
+      // 네트워크 에러 메시지 개선
+      let errorMessage = '데이터를 불러올 수 없습니다';
+      if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
+        errorMessage = '연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.';
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        errorMessage = '서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.';
+      }
+      
+      Alert.alert('오류', errorMessage, [
+        { text: '다시 시도', onPress: loadInitialData },
+        { text: '취소', style: 'cancel' },
+      ]);
     }
   };
   
@@ -112,9 +128,17 @@ export default function AddTransactionScreen() {
           setGoldPricePerGram(goldRate.gold14K);
           break;
       }
-    } catch (error) {
-      console.error('금 시세 로딩 실패:', error);
-      Alert.alert('오류', '금 시세를 불러오지 못했습니다');
+    } catch (err: any) {
+      console.error('금 시세 로딩 실패:', err);
+      
+      let errorMessage = '금 시세를 불러오지 못했습니다';
+      if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
+        errorMessage = '연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.';
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        errorMessage = '서버 응답 시간이 초과되었습니다.';
+      }
+      
+      Alert.alert('오류', errorMessage);
     }
   };
 
@@ -150,7 +174,7 @@ export default function AddTransactionScreen() {
         setSelectedImage(imageUri);
         
         // AI 분석 시작
-        analyzeImage(imageUri);
+        await analyzeImageAndUpload(imageUri);
       }
     } catch (error) {
       console.error('이미지 선택 실패:', error);
@@ -158,12 +182,69 @@ export default function AddTransactionScreen() {
     }
   };
 
-  const analyzeImage = async (imageUri: string) => {
+  const takePhoto = async () => {
+    try {
+      // 카메라 권한 요청
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다');
+        return;
+      }
+
+      // 카메라로 사진 촬영
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        setSelectedImage(imageUri);
+        
+        // AI 분석 시작
+        await analyzeImageAndUpload(imageUri);
+      }
+    } catch (error) {
+      console.error('사진 촬영 실패:', error);
+      Alert.alert('오류', '사진 촬영에 실패했습니다');
+    }
+  };
+
+  const showImagePicker = () => {
+    Alert.alert(
+      '이미지 선택',
+      '어떤 방법으로 추가하시겠습니까?',
+      [
+        {
+          text: '카메라',
+          onPress: takePhoto,
+        },
+        {
+          text: '갤러리',
+          onPress: pickImage,
+        },
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const analyzeImageAndUpload = async (imageUri: string) => {
     setIsAnalyzing(true);
     try {
+      // 1. Supabase Storage에 업로드
+      setIsUploading(true);
+      const publicUrl = await uploadImage(imageUri);
+      setUploadedImageUrl(publicUrl);
+      setIsUploading(false);
+
+      // 2. AI 분석
       const estimation = await aiApi.estimateFromImage(imageUri);
       
-      // 결과를 폼에 자동 입력
+      // 3. 결과를 폼에 자동 입력
       setGiftName(estimation.giftName);
       setAmount(estimation.estimatedPrice.toString());
       setCategory('GIFT');
@@ -174,15 +255,23 @@ export default function AddTransactionScreen() {
         [{ text: '확인' }]
       );
     } catch (error: any) {
-      console.error('AI 분석 실패:', error);
-      Alert.alert(
-        '분석 실패',
-        error.message || 'AI 분석에 실패했습니다. 수동으로 입력해주세요.',
-      );
+      console.error('처리 실패:', error);
+      
+      // 업로드는 성공했지만 AI 분석만 실패한 경우
+      if (uploadedImageUrl) {
+        Alert.alert(
+          '이미지 업로드 완료',
+          'AI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.',
+        );
+      } else {
+        Alert.alert(
+          '처리 실패',
+          error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.',
+        );
+      }
     } finally {
       setIsAnalyzing(false);
-      // 이미지는 분석 후 즉시 제거 (메모리 절약)
-      setSelectedImage(null);
+      setIsUploading(false);
     }
   };
 
@@ -226,7 +315,7 @@ export default function AddTransactionScreen() {
       console.log('연락처 확인/생성 완료:', contact.id);
 
       // 거래 생성
-      const transaction = await transactionsApi.create({
+      const transactionData: any = {
         contactId: contact.id,
         ledgerGroupId: selectedGroupId,
         type,
@@ -235,7 +324,14 @@ export default function AddTransactionScreen() {
         originalName: category !== 'CASH' ? giftName : undefined,
         memo: memo || undefined,
         eventDate: new Date().toISOString(),
-      });
+      };
+
+      // 이미지 URL이 있으면 추가
+      if (uploadedImageUrl) {
+        transactionData.imageUrl = uploadedImageUrl;
+      }
+
+      const transaction = await transactionsApi.create(transactionData);
 
       console.log('거래 생성 완료:', transaction);
 
@@ -260,6 +356,8 @@ export default function AddTransactionScreen() {
               setGiftName('');
               setMemo('');
               setSelectedContact(null);
+              setSelectedImage(null);
+              setUploadedImageUrl(null);
             },
             style: 'cancel',
           },
@@ -267,10 +365,19 @@ export default function AddTransactionScreen() {
       );
     } catch (error: any) {
       console.error('거래 추가 실패:', error);
-      Alert.alert(
-        '❌ 추가 실패', 
-        error.response?.data?.message || error.message || '거래 추가에 실패했습니다'
-      );
+      
+      let errorMessage = '거래 추가에 실패했습니다';
+      if (error.isNetworkError || error.code === 'ERR_NETWORK' || error.message?.includes('Connection failed')) {
+        errorMessage = '연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.';
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = '서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('❌ 추가 실패', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -382,15 +489,26 @@ export default function AddTransactionScreen() {
           <View style={styles.formGroup}>
             <Text style={styles.label}>📸 AI 가격 추정</Text>
             <TouchableOpacity
-              style={[styles.imagePickerButton, isAnalyzing && styles.imagePickerButtonDisabled]}
-              onPress={pickImage}
-              disabled={isAnalyzing}
+              style={[styles.imagePickerButton, (isAnalyzing || isUploading) && styles.imagePickerButtonDisabled]}
+              onPress={showImagePicker}
+              disabled={isAnalyzing || isUploading}
             >
-              {isAnalyzing ? (
+              {isUploading ? (
+                <View style={styles.analyzingContainer}>
+                  <ActivityIndicator color="#ef4444" size="small" />
+                  <Text style={styles.analyzingText}>이미지 업로드 중...</Text>
+                </View>
+              ) : isAnalyzing ? (
                 <View style={styles.analyzingContainer}>
                   <ActivityIndicator color="#ef4444" size="small" />
                   <Text style={styles.analyzingText}>AI 분석 중...</Text>
                 </View>
+              ) : uploadedImageUrl ? (
+                <>
+                  <Text style={styles.imagePickerIcon}>✅</Text>
+                  <Text style={styles.imagePickerText}>이미지 업로드 완료</Text>
+                  <Text style={styles.imagePickerSubtext}>다시 촬영/선택하려면 탭하세요</Text>
+                </>
               ) : (
                 <>
                   <Text style={styles.imagePickerIcon}>📷</Text>
