@@ -22,6 +22,11 @@ apiClient.interceptors.request.use(
     //   config.headers.Authorization = `Bearer ${token}`;
     // }
     
+    // localtunnel 회피 페이지 우회 (loca.lt 사용 시)
+    if (API_BASE_URL.includes('loca.lt')) {
+      config.headers['Bypass-Tunnel-Reminder'] = 'true';
+    }
+    
     // 재시도 횟수 초기화
     if (!config.headers) {
       config.headers = {} as any;
@@ -80,9 +85,11 @@ apiClient.interceptors.response.use(
 
     // 사용자 친화적인 에러 메시지 추가
     if (isNetworkError) {
-      const enhancedError = new Error(
-        'Connection failed. If the problem persists, please check your internet connection or VPN'
-      ) as any;
+      let message = '연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.';
+      if (__DEV__ && API_BASE_URL.includes('localhost')) {
+        message += '\n\n[터널 모드 사용 시] 백엔드도 터널로 노출해야 합니다.\njugobatgo-server에서 "npm run tunnel" 실행 후, 출력된 URL을 .env의 EXPO_PUBLIC_API_URL에 설정하세요.';
+      }
+      const enhancedError = new Error(message) as any;
       enhancedError.originalError = error;
       enhancedError.isNetworkError = true;
       return Promise.reject(enhancedError);

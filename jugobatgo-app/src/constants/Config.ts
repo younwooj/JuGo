@@ -1,5 +1,48 @@
-// API Base URL
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+/** 사설 IP 대역인지 확인 (192.168.x.x, 10.x.x.x, 172.16-31.x.x) */
+function isPrivateIP(host: string): boolean {
+  if (!host) return false;
+  return (
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)
+  );
+}
+
+/**
+ * API Base URL 결정 로직
+ * - EXPO_PUBLIC_API_URL 환경변수가 있으면 사용 (단, 모바일에서 localhost인 경우 제외)
+ * - LAN 모드: hostUri가 사설 IP(192.168.x.x 등) → 개발 PC IP로 API 접속
+ * - 터널 모드 (--tunnel): hostUri가 ngrok/expo 등 → EXPO_PUBLIC_API_URL 필수
+ *   (백엔드도 터널로 노출해야 함. npm run tunnel 실행)
+ */
+function getApiBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  const isLocalhost = envUrl?.includes('localhost') || envUrl?.includes('127.0.0.1');
+
+  if (Platform.OS !== 'web' && (!envUrl || isLocalhost)) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const match = hostUri.match(/exp:\/\/([^:/]+)/);
+      if (match) {
+        const host = match[1];
+        // 터널 모드: hostUri가 ngrok, expo.dev 등 → localhost 사용 불가, env 필수
+        if (!isPrivateIP(host)) {
+          return envUrl || 'http://localhost:3000'; // env에 터널 URL 설정 필요
+        }
+        // LAN 모드: 사설 IP → 개발 PC로 연결
+        const port = envUrl?.match(/:(\d+)/)?.[1] ?? '3000';
+        return `http://${host}:${port}`;
+      }
+    }
+  }
+
+  return envUrl || 'http://localhost:3000';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // 색상 상수
 export const Colors = {

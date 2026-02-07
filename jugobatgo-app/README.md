@@ -56,6 +56,51 @@ src/
 EXPO_PUBLIC_API_URL=http://localhost:3000
 ```
 
+### 게스트 모드 (백엔드 없이 테스트)
+
+"게스트로 둘러보기"를 누르면 데모 데이터로 앱을 둘러볼 수 있습니다. 백엔드 연결 없이 UI를 확인할 수 있습니다.
+
+### 테스트 계정 (기능 점검용)
+
+1. 로그인 화면에서 **"테스트 계정 없으면 여기서 생성"** 클릭
+2. Supabase에 test@jugobatgo.com 계정이 생성됨
+3. (이메일 확인 필요 시) Supabase 대시보드 또는 이메일에서 인증
+4. **"테스트 계정으로 로그인"** 클릭
+
+또는 Supabase 대시보드에서 수동 생성:
+- Authentication > Users > Add user
+- Email: `test@jugobatgo.com`, Password: `Test123456!`
+
+### 터널 모드 (expo start --tunnel)
+
+PC가 WiFi가 아닌 유선 랜에 연결된 경우, Expo Go에서 앱을 테스트하려면 tunnel 모드가 필요합니다.
+
+**백엔드도 터널로 노출해야 합니다:**
+
+1. 터미널 1: 백엔드 서버 실행
+   ```bash
+   cd jugobatgo-server
+   npm run start:dev
+   ```
+
+2. 터미널 2: 백엔드 터널 실행 (새 터미널에서)
+   ```bash
+   cd jugobatgo-server
+   npm run tunnel
+   ```
+   출력되는 URL (예: `https://xxx.loca.lt`)을 복사하세요.
+
+3. `jugobatgo-app/.env`에 터널 URL 설정:
+   ```env
+   EXPO_PUBLIC_API_URL=https://xxx.loca.lt
+   ```
+
+4. 앱 재시작 (캐시 클리어 권장):
+   ```bash
+   cd jugobatgo-app
+   npx expo start --tunnel --clear
+   ```
+
 ## 개발 규칙
 
 - TypeScript Strict Mode 사용

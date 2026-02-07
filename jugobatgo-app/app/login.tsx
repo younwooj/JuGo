@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { authApi, userApi } from '../src/api/auth';
@@ -162,23 +163,161 @@ export default function LoginScreen() {
     }
   };
 
+  // 테스트 계정 (개발/테스트용)
+  const TEST_EMAIL = 'test@jugobatgo.com';
+  const TEST_PASSWORD = 'Test123456!';
+
+  // Supabase 에러 메시지에서 '계정 없음' 여부 확인 (다양한 형식 대응)
+  const isInvalidCredentials = (msg: string) =>
+    msg && (
+      msg.toLowerCase().includes('invalid login credentials') ||
+      msg.toLowerCase().includes('invalid_credentials') ||
+      msg.includes('올바르지 않습니다')
+    );
+
+  const completeTestLogin = async (authData: any) => {
+    if (!authData.user) return;
+    if (!authData.user.email_confirmed_at) {
+      Alert.alert(
+        '이메일 인증 필요',
+        'Supabase 대시보드 > Authentication > Users에서 test@jugobatgo.com 계정을 찾아 "Confirm email"을 클릭해주세요.\n\n또는 Supabase > Authentication > Providers > Email에서 "Confirm email"을 비활성화한 뒤 계정을 다시 생성해주세요.'
+      );
+      return;
+    }
+    try {
+      const userProfile = await userApi.getOrCreateUserProfile(authData.user);
+      setUser({
+        id: userProfile.id,
+        email: userProfile.email,
+        socialProvider: userProfile.socialProvider,
+      });
+      if (authData.session) {
+        setTokens(authData.session.access_token, authData.session.refresh_token);
+      }
+      router.replace('/');
+    } catch (backendError: any) {
+      Alert.alert(
+        '백엔드 연결 실패',
+        '로그인은 성공했지만 백엔드 서버에 연결할 수 없습니다.\n\n"게스트로 둘러보기"를 사용하시거나, 백엔드 실행 후 다시 시도해주세요.'
+      );
+    }
+  };
+
+  // 테스트 계정으로 로그인 (계정 없으면 자동 생성 시도)
+  const handleTestLogin = async () => {
+    setEmail(TEST_EMAIL);
+    setPassword(TEST_PASSWORD);
+    setIsSignUp(false);
+    setLoading(true);
+    try {
+      let authData = await authApi.signInWithEmail(TEST_EMAIL, TEST_PASSWORD);
+      if (authData.user) {
+        setLoading(false);
+        await completeTestLogin(authData);
+        return;
+      }
+    } catch (signInError: any) {
+      const msg = signInError?.message || String(signInError);
+      if (isInvalidCredentials(msg)) {
+        // 계정 없음 → 자동 생성 시도
+        try {
+          const signUpData = await authApi.signUpWithEmail(TEST_EMAIL, TEST_PASSWORD);
+          setLoading(false);
+          if (signUpData.session) {
+            await completeTestLogin(signUpData);
+          } else if (signUpData.user) {
+            Alert.alert(
+              '계정 생성됨',
+              'test@jugobatgo.com 계정이 생성되었습니다.\n\nSupabase 대시보드에서 이메일 인증을 완료하거나, "Confirm email" 비활성화 후 "테스트 계정으로 로그인"을 다시 눌러주세요.'
+            );
+          }
+        } catch (signUpError: any) {
+          setLoading(false);
+          const signUpMsg = signUpError?.message || String(signUpError);
+          if (signUpMsg.toLowerCase().includes('already registered')) {
+            Alert.alert(
+              '비밀번호 확인',
+              '테스트 계정이 이미 있습니다. 비밀번호가 Test123456! 가 맞는지 확인해주세요.\n\nSupabase 대시보드에서 비밀번호를 재설정할 수 있습니다.'
+            );
+          } else {
+            Alert.alert('계정 생성 실패', signUpMsg);
+          }
+        }
+      } else {
+        setLoading(false);
+        Alert.alert('로그인 실패', msg || '알 수 없는 오류');
+      }
+    }
+  };
+
+  // 테스트 계정 생성 (최초 1회)
+  const handleCreateTestAccount = async () => {
+    setLoading(true);
+    try {
+      const authData = await authApi.signUpWithEmail(TEST_EMAIL, TEST_PASSWORD);
+      if (authData.session) {
+        try {
+          const userProfile = await userApi.getOrCreateUserProfile(authData.user);
+          setUser({
+            id: userProfile.id,
+            email: userProfile.email,
+            socialProvider: userProfile.socialProvider,
+          });
+          setTokens(authData.session.access_token, authData.session.refresh_token);
+          setLoading(false);
+          router.replace('/');
+        } catch (backendError: any) {
+          setLoading(false);
+          Alert.alert(
+            '백엔드 연결 필요',
+            '계정이 생성되었지만 백엔드 서버를 먼저 실행해주세요.\n\n(jugobatgo-server에서 npm run start:dev 실행 후 "테스트 계정으로 로그인" 시도)'
+          );
+        }
+      } else {
+        setLoading(false);
+        Alert.alert(
+          '회원가입 완료',
+          'test@jugobatgo.com로 인증 메일을 발송했습니다.\n\n이메일을 확인하고 "Confirm your mail" 링크를 클릭한 뒤, "테스트 계정으로 로그인"을 눌러주세요.\n\n(개발 시 Supabase에서 이메일 확인 비활성화하면 바로 로그인됩니다)'
+        );
+      }
+    } catch (error: any) {
+      setLoading(false);
+      if (error.message?.includes('already registered')) {
+        Alert.alert('알림', '이미 테스트 계정이 있습니다. "테스트 계정으로 로그인"을 눌러주세요.');
+      } else {
+        Alert.alert('생성 실패', error.message || '계정 생성 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
   // 게스트 모드로 계속 (개발용)
   const handleGuestMode = () => {
     console.log('=== 게스트 모드 클릭 ===');
-    
-    if (confirm('게스트 모드로 계속하시겠습니까?\n일부 기능이 제한될 수 있습니다.')) {
-      console.log('게스트 모드 진입');
-      // 게스트 사용자 설정 (개발용)
-      setUser({
-        id: 'guest',
-        email: 'guest@jugobatgo.com',
-        socialProvider: 'guest',
-      });
-      console.log('홈으로 이동');
-      router.replace('/');
-    } else {
-      console.log('게스트 모드 취소');
-    }
+
+    Alert.alert(
+      '게스트 모드',
+      '게스트 모드로 계속하시겠습니까?\n일부 기능이 제한될 수 있습니다.',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+          onPress: () => console.log('게스트 모드 취소'),
+        },
+        {
+          text: '확인',
+          onPress: () => {
+            console.log('게스트 모드 진입');
+            setUser({
+              id: 'guest',
+              email: 'guest@jugobatgo.com',
+              socialProvider: 'guest',
+            });
+            console.log('홈으로 이동');
+            router.replace('/');
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -362,18 +501,50 @@ export default function LoginScreen() {
           </>
         )}
 
-        {/* 게스트 모드 (개발용) */}
+        {/* 테스트 계정 (개발/기능 점검용) */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#f3f4f6',
+            borderWidth: 1,
+            borderColor: '#d1d5db',
+            borderRadius: 8,
+            paddingVertical: 12,
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+          onPress={handleTestLogin}
+          disabled={loading}
+        >
+          <Text style={{ color: '#374151', fontSize: 14, fontWeight: '500' }}>
+            🧪 테스트 계정으로 로그인
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            paddingVertical: 8,
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+          onPress={handleCreateTestAccount}
+          disabled={loading}
+        >
+          <Text style={{ color: '#9ca3af', fontSize: 12 }}>
+            (테스트 계정 없으면 여기서 생성)
+          </Text>
+        </TouchableOpacity>
+
+        {/* 게스트 모드 (백엔드 없이 UI 둘러보기) */}
         <TouchableOpacity
           style={{
             paddingVertical: 12,
             alignItems: 'center',
-            marginTop: 12,
+            marginTop: 4,
           }}
           onPress={handleGuestMode}
           disabled={loading}
         >
           <Text style={{ color: '#9ca3af', fontSize: 14 }}>
-            게스트로 둘러보기 →
+            게스트로 둘러보기 (데모 데이터) →
           </Text>
         </TouchableOpacity>
       </View>

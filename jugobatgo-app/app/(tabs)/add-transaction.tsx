@@ -18,11 +18,15 @@ import { contactsApi, Contact } from '../../src/api/contacts';
 import { aiApi } from '../../src/api/ai';
 import { getLatestGoldRate, convertGoldToKRW, convertKRWToGold } from '../../src/api/gold';
 import { uploadImage } from '../../src/api/storage';
+import { useAuthStore } from '../../src/store/authStore';
+import { MOCK_CONTACTS } from '../../src/mock/demoData';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function AddTransactionScreen() {
+  const { user } = useAuthStore();
+  const isGuest = user?.id === 'guest';
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -84,6 +88,10 @@ export default function AddTransactionScreen() {
 
   const loadInitialData = async () => {
     try {
+      if (isGuest) {
+        setContacts(MOCK_CONTACTS);
+        return;
+      }
       const contactsData = await contactsApi.getAll();
       setContacts(contactsData);
     } catch (err: any) {
@@ -106,6 +114,11 @@ export default function AddTransactionScreen() {
   };
   
   const loadGoldRate = async () => {
+    if (isGuest) {
+      // 게스트 모드: 기본 금 시세 (24K 약 13만원/g)
+      setGoldPricePerGram(goldKarat === '24K' ? 130000 : goldKarat === '18K' ? 97000 : 76000);
+      return;
+    }
     try {
       const goldRate = await getLatestGoldRate();
       switch (goldKarat) {
@@ -300,6 +313,14 @@ export default function AddTransactionScreen() {
   };
 
   const handleSubmit = async () => {
+    if (isGuest) {
+      if (Platform.OS === 'web') {
+        alert('게스트 모드에서는 거래를 추가할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
+      } else {
+        Alert.alert('알림', '게스트 모드에서는 거래를 추가할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
+      }
+      return;
+    }
     // 유효성 검사
     if (!selectedContact) {
       if (Platform.OS === 'web') {

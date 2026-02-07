@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, Text } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -96,8 +96,8 @@ function TabBarIcon({ name, color, size }: { name: string; color: string; size: 
   };
 
   return (
-    <div style={{ fontSize: size * 1.2 }}>
+    <Text style={{ fontSize: size * 1.2 }}>
       {icons[name] || '•'}
-    </div>
+    </Text>
   );
 }

@@ -4,12 +4,19 @@ import { useRouter } from 'expo-router';
 import { BarChart } from 'react-native-gifted-charts';
 import { transactionsApi, Transaction } from '../../src/api/transactions';
 import { getJubadTemperature } from '../../src/api/statistics';
+import { useAuthStore } from '../../src/store/authStore';
+import {
+  MOCK_TRANSACTIONS,
+  MOCK_JUBAD_TEMPERATURE,
+} from '../../src/mock/demoData';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isGuest = user?.id === 'guest';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,17 +30,21 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       setError(null);
+
+      if (isGuest) {
+        setTransactions(MOCK_TRANSACTIONS.slice(0, 3));
+        setJubadTemperature(MOCK_JUBAD_TEMPERATURE);
+        return;
+      }
+
       const [transactionsData, temperature] = await Promise.all([
         transactionsApi.getAll(),
         getJubadTemperature(DEMO_USER_ID),
       ]);
-      // 최신 3개만 표시
       setTransactions(transactionsData.slice(0, 3));
       setJubadTemperature(temperature);
     } catch (err: any) {
       console.error('데이터 로딩 실패:', err);
-      
-      // 네트워크 에러인 경우 더 구체적인 메시지
       if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
         setError('연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.');
       } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {

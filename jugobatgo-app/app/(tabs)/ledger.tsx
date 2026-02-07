@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { ledgerApi } from '../../src/api/ledger';
 import { transactionsApi, Transaction } from '../../src/api/transactions';
+import { useAuthStore } from '../../src/store/authStore';
+import { MOCK_LEDGER_GROUPS, MOCK_TRANSACTIONS } from '../../src/mock/demoData';
 
 interface LedgerGroup {
   id: string;
@@ -27,6 +29,8 @@ interface GroupStats {
 }
 
 export default function LedgerListScreen() {
+  const { user } = useAuthStore();
+  const isGuest = user?.id === 'guest';
   const [groups, setGroups] = useState<LedgerGroup[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<GroupStats[]>([]);
@@ -41,6 +45,17 @@ export default function LedgerListScreen() {
     try {
       setLoading(true);
       setError(null);
+
+      if (isGuest) {
+        setGroups(MOCK_LEDGER_GROUPS.map((g) => ({ id: g.id, name: g.name, createdAt: g.createdAt })));
+        setTransactions(MOCK_TRANSACTIONS);
+        calculateStats(
+          MOCK_LEDGER_GROUPS.map((g) => ({ id: g.id, name: g.name, createdAt: g.createdAt })),
+          MOCK_TRANSACTIONS
+        );
+        return;
+      }
+
       const [groupsData, transactionsData] = await Promise.all([
         ledgerApi.getAll(),
         transactionsApi.getAll(),
@@ -51,8 +66,6 @@ export default function LedgerListScreen() {
       calculateStats(groupsData, transactionsData);
     } catch (err: any) {
       console.error('데이터 로딩 실패:', err);
-      
-      // 네트워크 에러인 경우 더 구체적인 메시지
       if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
         setError('연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.');
       } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {

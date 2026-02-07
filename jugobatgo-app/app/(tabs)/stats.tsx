@@ -19,6 +19,13 @@ import {
   MonthlyStatistics,
   TopContact,
 } from '../../src/api/statistics';
+import { useAuthStore } from '../../src/store/authStore';
+import {
+  MOCK_USER_STATS,
+  MOCK_CATEGORY_STATS,
+  MOCK_MONTHLY_STATS,
+  MOCK_TOP_CONTACTS,
+} from '../../src/mock/demoData';
 
 // 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
@@ -26,6 +33,8 @@ const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 const screenWidth = Dimensions.get('window').width;
 
 export default function StatsScreen() {
+  const { user } = useAuthStore();
+  const isGuest = user?.id === 'guest';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStatistics | null>(null);
@@ -41,6 +50,15 @@ export default function StatsScreen() {
     try {
       setLoading(true);
       setError(null);
+
+      if (isGuest) {
+        setStats(MOCK_USER_STATS);
+        setCategoryStats(MOCK_CATEGORY_STATS);
+        setMonthlyStats(MOCK_MONTHLY_STATS);
+        setTopContacts(MOCK_TOP_CONTACTS);
+        return;
+      }
+
       const [userStats, catStats, monthStats, topCon] = await Promise.all([
         getUserStatistics(DEMO_USER_ID),
         getCategoryStatistics(DEMO_USER_ID),
@@ -53,8 +71,6 @@ export default function StatsScreen() {
       setTopContacts(topCon);
     } catch (err: any) {
       console.error('통계 로딩 실패:', err);
-      
-      // 네트워크 에러인 경우 더 구체적인 메시지
       if (err.isNetworkError || err.code === 'ERR_NETWORK' || err.message?.includes('Connection failed')) {
         setError('연결에 실패했습니다.\n인터넷 연결이나 VPN을 확인해주세요.');
       } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {

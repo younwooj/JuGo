@@ -14,11 +14,15 @@ import { useRouter } from 'expo-router';
 import { contactsApi, Contact } from '../../src/api/contacts';
 import { ledgerApi } from '../../src/api/ledger';
 import * as Contacts from 'expo-contacts';
+import { useAuthStore } from '../../src/store/authStore';
+import { MOCK_CONTACTS, MOCK_LEDGER_GROUPS } from '../../src/mock/demoData';
 
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function ContactsScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isGuest = user?.id === 'guest';
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -35,6 +39,13 @@ export default function ContactsScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
+
+      if (isGuest) {
+        setContacts(MOCK_CONTACTS);
+        setLedgerGroups(MOCK_LEDGER_GROUPS);
+        return;
+      }
+
       const [contactsData, groupsData] = await Promise.all([
         contactsApi.getAll(),
         ledgerApi.getAll(),
@@ -54,6 +65,14 @@ export default function ContactsScreen() {
   };
 
   const syncPhoneContacts = async () => {
+    if (isGuest) {
+      if (Platform.OS === 'web') {
+        alert('게스트 모드에서는 연락처 동기화를 사용할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
+      } else {
+        Alert.alert('알림', '게스트 모드에서는 연락처 동기화를 사용할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
+      }
+      return;
+    }
     try {
       setSyncing(true);
 
@@ -129,7 +148,14 @@ export default function ContactsScreen() {
 
   const saveContactGroup = async () => {
     if (!editingContact) return;
-
+    if (isGuest) {
+      if (Platform.OS === 'web') {
+        alert('게스트 모드에서는 장부 그룹을 변경할 수 없습니다.');
+      } else {
+        Alert.alert('알림', '게스트 모드에서는 장부 그룹을 변경할 수 없습니다.');
+      }
+      return;
+    }
     try {
       await contactsApi.update(editingContact.id, {
         ledgerGroupId: selectedGroupId || undefined,
@@ -255,7 +281,7 @@ export default function ContactsScreen() {
               selectedGroupFilter === 'all' && styles.filterChipTextActive,
             ]}
           >
-            전체 ({contacts.length})
+            전체 {contacts.length}
           </Text>
         </TouchableOpacity>
 
@@ -272,7 +298,7 @@ export default function ContactsScreen() {
               selectedGroupFilter === 'unassigned' && styles.filterChipTextActive,
             ]}
           >
-            미분류 ({unassignedCount})
+            미분류 {unassignedCount}
           </Text>
         </TouchableOpacity>
 
@@ -291,7 +317,7 @@ export default function ContactsScreen() {
                 selectedGroupFilter === group.id && styles.filterChipTextActive,
               ]}
             >
-              {group.name} ({group.count})
+              {group.name} {group.count}
             </Text>
           </TouchableOpacity>
         ))}
@@ -455,39 +481,38 @@ const styles = StyleSheet.create({
   },
   syncButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
-    minWidth: 90,
     alignItems: 'center',
   },
   syncButtonText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13,
   },
   searchSection: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   searchInput: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 15,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
   filterSection: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 12,
     flexDirection: 'row',
   },
   filterChip: {
     backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
     marginRight: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
