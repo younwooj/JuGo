@@ -194,7 +194,6 @@ export default function ContactsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>연락처 관리</Text>
-          <Text style={styles.headerSubtitle}>총 {contacts.length}명</Text>
         </View>
         <TouchableOpacity
           style={styles.syncButton}
@@ -223,7 +222,12 @@ export default function ContactsScreen() {
       </View>
 
       {/* 장부 그룹 필터 */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterSection}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterSection}
+        contentContainerStyle={styles.filterSectionContent}
+      >
         <TouchableOpacity
           style={[
             styles.filterChip,
@@ -420,7 +424,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 24,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -429,11 +433,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
-  },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginTop: 4,
   },
   syncButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -453,7 +452,8 @@ const styles = StyleSheet.create({
   },
   searchSection: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 8,
+    paddingBottom: 0,
   },
   searchInput: {
     backgroundColor: 'white',
@@ -465,14 +465,18 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingTop: 2,
+    paddingBottom: 2,
+  },
+  filterSectionContent: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   filterChip: {
     backgroundColor: 'white',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     marginRight: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
@@ -482,7 +486,7 @@ const styles = StyleSheet.create({
     borderColor: '#ef4444',
   },
   filterChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#6b7280',
   },

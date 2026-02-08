@@ -350,13 +350,13 @@ export default function AddTransactionScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 헤더 */}
+    <View style={styles.container}>
+      {/* 상단 고정: 헤더 */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>새 거래 추가</Text>
-        <Text style={styles.headerSubtitle}>주고받은 내역을 기록하세요</Text>
       </View>
 
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.formContainer}>
         {/* 연락처 선택 */}
         <View style={styles.formGroup}>
@@ -645,7 +645,8 @@ export default function AddTransactionScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -658,17 +659,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   headerTitle: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
   },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginTop: 4,
+  scrollContent: {
+    flex: 1,
   },
   formContainer: {
     padding: 24,

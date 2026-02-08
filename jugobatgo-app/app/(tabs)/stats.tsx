@@ -186,13 +186,13 @@ export default function StatsScreen() {
   const { giveData, receiveData } = getLineChartData();
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 헤더 */}
+    <View style={styles.container}>
+      {/* 상단 고정: 헤더 */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>통계</Text>
-        <Text style={styles.headerSubtitle}>주고받은 내역을 분석해요</Text>
       </View>
 
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.contentContainer}>
         {/* 주밥 온도 */}
         <View
@@ -443,7 +443,8 @@ export default function StatsScreen() {
           )}
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -489,17 +490,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   headerTitle: {
     color: 'white',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
   },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    marginTop: 4,
+  scrollContent: {
+    flex: 1,
   },
   contentContainer: {
     padding: 16,

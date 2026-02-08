@@ -137,24 +137,21 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 헤더 */}
+    <View style={styles.container}>
+      {/* 상단 고정: 헤더 */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>주고받고</Text>
-          <Text style={styles.headerSubtitle}>경조사 관리의 새로운 기준</Text>
-        </View>
+        <Text style={styles.headerTitle}>마음:주고받고</Text>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => router.push('/settings')}
         >
-          <Ionicons name="settings-outline" size={22} color="#374151" />
+          <Ionicons name="settings-outline" size={22} color="white" />
         </TouchableOpacity>
       </View>
 
-      {/* 주받 온도계 */}
+      {/* 상단 고정: 내 마음 온도 */}
       <View style={styles.temperatureCard}>
-        <Text style={styles.cardTitle}>내 주밥 온도</Text>
+        <Text style={styles.cardTitle}>내 마음 온도</Text>
         
         {/* 온도계 바 */}
         <View style={styles.progressBarContainer}>
@@ -186,6 +183,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* 스크롤 가능 영역 */}
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* 요약 카드 */}
       <View style={styles.summarySection}>
         <Text style={styles.sectionTitle}>이번 달 요약</Text>
@@ -295,7 +294,8 @@ export default function HomeScreen() {
           <Text style={styles.secondaryButtonText}>장부 관리</Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -349,10 +349,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 32,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   settingsButton: {
     width: 40,
@@ -370,31 +370,32 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginTop: 4,
+  scrollContent: {
+    flex: 1,
   },
   temperatureCard: {
     marginHorizontal: 24,
-    marginTop: -24,
+    marginTop: -16,
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 12,
+    padding: 16,
+    paddingTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    borderTopWidth: 4,
+    borderTopColor: '#ef4444',
   },
   cardTitle: {
     color: '#374151',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   progressBarContainer: {
-    height: 32,
+    height: 24,
     backgroundColor: '#e5e7eb',
     borderRadius: 16,
     overflow: 'hidden',

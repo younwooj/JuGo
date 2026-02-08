@@ -149,14 +149,13 @@ export default function LedgerListScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 헤더 */}
+    <View style={styles.container}>
+      {/* 상단 고정: 헤더 */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>내 장부</Text>
-        <Text style={styles.headerSubtitle}>그룹별 거래 내역</Text>
       </View>
 
-      {/* 전체 통계 */}
+      {/* 상단 고정: 전체 통계 */}
       <View style={styles.totalStatsCard}>
         <Text style={styles.cardTitle}>전체 통계</Text>
         <View style={styles.statsRow}>
@@ -177,6 +176,8 @@ export default function LedgerListScreen() {
         </View>
       </View>
 
+      {/* 스크롤 가능 영역 */}
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* 장부 그룹 리스트 */}
       <View style={styles.groupsSection}>
         <View style={styles.sectionHeader}>
@@ -233,7 +234,8 @@ export default function LedgerListScreen() {
           ))
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -277,35 +279,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   headerTitle: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
   },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginTop: 4,
+  scrollContent: {
+    flex: 1,
   },
   totalStatsCard: {
     marginHorizontal: 24,
-    marginTop: -24,
+    marginTop: -16,
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 12,
+    padding: 16,
+    paddingTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    borderTopWidth: 4,
+    borderTopColor: '#ef4444',
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   statsRow: {
     flexDirection: 'row',
