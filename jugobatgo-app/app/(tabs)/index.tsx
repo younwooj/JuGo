@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { BarChart } from 'react-native-gifted-charts';
 import { transactionsApi, Transaction } from '../../src/api/transactions';
 import { getJubadTemperature } from '../../src/api/statistics';
@@ -147,7 +148,7 @@ export default function HomeScreen() {
           style={styles.settingsButton}
           onPress={() => router.push('/settings')}
         >
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Ionicons name="settings-outline" size={22} color="#374151" />
         </TouchableOpacity>
       </View>
 

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LineChart, PieChart, BarChart } from 'react-native-gifted-charts';
 import {
   getUserStatistics,
@@ -156,7 +157,9 @@ export default function StatsScreen() {
   if (error) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
+        <View style={{ marginBottom: 16 }}>
+          <Ionicons name="warning-outline" size={48} color="#9ca3af" />
+        </View>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadStatistics}>
           <Text style={styles.retryButtonText}>다시 시도</Text>
@@ -168,7 +171,9 @@ export default function StatsScreen() {
   if (!stats || !categoryStats) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
+        <View style={{ marginBottom: 16 }}>
+          <Ionicons name="warning-outline" size={48} color="#9ca3af" />
+        </View>
         <Text style={styles.errorText}>통계 데이터가 없습니다</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadStatistics}>
           <Text style={styles.retryButtonText}>다시 시도</Text>
@@ -402,13 +407,18 @@ export default function StatsScreen() {
 
         {/* 최근 거래 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>📝 최근 거래</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="document-text-outline" size={20} color="#374151" />
+            <Text style={styles.cardTitle}> 최근 거래</Text>
+          </View>
           {stats.recentTransactions.map((transaction) => (
             <View key={transaction.id} style={styles.transactionItem}>
               <View style={styles.transactionIcon}>
-                <Text style={styles.transactionIconText}>
-                  {transaction.type === 'GIVE' ? '📤' : '📥'}
-                </Text>
+                <Ionicons
+                  name={transaction.type === 'GIVE' ? 'arrow-up-outline' : 'arrow-down-outline'}
+                  size={20}
+                  color={transaction.type === 'GIVE' ? '#ef4444' : '#10b981'}
+                />
               </View>
               <View style={styles.transactionInfo}>
                 <Text style={styles.transactionName}>{transaction.contact.name}</Text>
@@ -529,11 +539,15 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 8,
   },
   chartSubtitle: {
     fontSize: 14,
@@ -685,9 +699,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-  },
-  transactionIconText: {
-    fontSize: 20,
   },
   transactionInfo: {
     flex: 1,

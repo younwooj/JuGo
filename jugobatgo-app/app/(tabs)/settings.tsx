@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../src/store/authStore';
 import { authApi } from '../../src/api/auth';
 
@@ -39,45 +40,46 @@ export default function SettingsScreen() {
     );
   };
 
+  const ICON_COLOR = '#374151';
   const menuItems = [
     {
       id: 'contacts-sync',
-      icon: '📱',
+      iconName: 'phone-portrait-outline' as const,
       title: '연락처 동기화',
       description: '주소록에서 연락처 불러오기',
       onPress: () => router.push('/(tabs)/contacts-sync'),
     },
     {
       id: 'profile',
-      icon: '👤',
+      iconName: 'person-outline' as const,
       title: '프로필 설정',
       description: '내 정보 수정',
       onPress: () => {},
     },
     {
       id: 'notifications',
-      icon: '🔔',
+      iconName: 'notifications-outline' as const,
       title: '알림 설정',
       description: '푸시 알림 관리',
       onPress: () => {},
     },
     {
       id: 'security',
-      icon: '🔒',
+      iconName: 'lock-closed-outline' as const,
       title: '보안 설정',
       description: '앱 잠금 및 생체 인증',
       onPress: () => {},
     },
     {
       id: 'backup',
-      icon: '💾',
+      iconName: 'save-outline' as const,
       title: '데이터 백업',
       description: '데이터 내보내기/복원',
       onPress: () => {},
     },
     {
       id: 'about',
-      icon: 'ℹ️',
+      iconName: 'information-circle-outline' as const,
       title: '앱 정보',
       description: '버전 1.0.0',
       onPress: () => {},
@@ -112,7 +114,9 @@ export default function SettingsScreen() {
             ]}
             onPress={item.onPress}
           >
-            <Text style={styles.menuIcon}>{item.icon}</Text>
+            <View style={styles.menuIconWrapper}>
+              <Ionicons name={item.iconName} size={24} color={ICON_COLOR} />
+            </View>
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>{item.title}</Text>
               <Text style={styles.menuDescription}>{item.description}</Text>
@@ -126,7 +130,9 @@ export default function SettingsScreen() {
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutIcon}>🚪</Text>
+          <View style={styles.logoutIconWrapper}>
+            <Ionicons name="log-out-outline" size={20} color="#374151" />
+          </View>
           <Text style={styles.logoutText}>로그아웃</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -187,8 +193,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
-  menuIcon: {
-    fontSize: 32,
+  menuIconWrapper: {
     marginRight: 16,
   },
   menuContent: {
@@ -208,13 +213,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#9ca3af',
   },
+  logoutIconWrapper: {
+    marginRight: 8,
+  },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f3f4f6',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e5e7eb',
     padding: 16,
     borderRadius: 12,
     marginTop: 16,
@@ -226,6 +234,6 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ef4444',
+    color: '#374151',
   },
 });

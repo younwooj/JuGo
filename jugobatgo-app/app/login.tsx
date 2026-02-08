@@ -5,9 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
-  Alert,
 } from 'react-native';
+import { platform } from '../src/utils/platform';
 import { useRouter } from 'expo-router';
 import { authApi, userApi } from '../src/api/auth';
 import { useAuthStore } from '../src/store/authStore';
@@ -26,18 +25,16 @@ export default function LoginScreen() {
     console.log('=== OAuth 로그인 시도 ===', provider);
     try {
       setLoading(true);
-      
-      if (Platform.OS === 'web') {
+
+      if (platform.isWeb) {
         console.log('웹 OAuth 시작');
-        // 웹에서는 OAuth 팝업/리다이렉트 사용
         await authApi.signInWithOAuth(provider);
       } else {
-        // 모바일에서는 다른 처리 필요 (추후 구현)
-        alert('준비 중\n\n모바일 OAuth 로그인은 준비 중입니다.\n이메일 로그인을 사용해주세요.');
+        platform.alert('준비 중', '모바일 OAuth 로그인은 준비 중입니다.\n이메일 로그인을 사용해주세요.');
       }
     } catch (error: any) {
       console.error('OAuth login error:', error);
-      alert('로그인 실패\n\n' + (error.message || '로그인 중 오류가 발생했습니다.'));
+      platform.alert('로그인 실패', error.message || '로그인 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +50,7 @@ export default function LoginScreen() {
     // 입력값 검증
     if (!email || !password) {
       console.log('입력값 없음');
-      alert('이메일과 비밀번호를 입력해주세요.');
+      platform.alert('입력 필요', '이메일과 비밀번호를 입력해주세요.');
       return;
     }
 
@@ -61,7 +58,7 @@ export default function LoginScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       console.log('이메일 형식 오류');
-      alert('올바른 이메일 형식을 입력해주세요.');
+      platform.alert('입력 오류', '올바른 이메일 형식을 입력해주세요.');
       return;
     }
 
@@ -69,13 +66,13 @@ export default function LoginScreen() {
     if (isSignUp) {
       if (password.length < 6) {
         console.log('비밀번호 길이 부족');
-        alert('비밀번호는 최소 6자 이상이어야 합니다.');
+        platform.alert('입력 오류', '비밀번호는 최소 6자 이상이어야 합니다.');
         return;
       }
-      
+
       if (password !== confirmPassword) {
         console.log('비밀번호 불일치');
-        alert('비밀번호가 일치하지 않습니다.');
+        platform.alert('입력 오류', '비밀번호가 일치하지 않습니다.');
         return;
       }
     }
@@ -93,7 +90,10 @@ export default function LoginScreen() {
         // 로딩 먼저 종료
         setLoading(false);
         
-        alert(`✅ 회원가입 완료!\n\n${email}로 인증 메일을 발송했습니다.\n\n이메일을 확인하고 "Confirm your mail" 링크를 클릭하여 계정을 활성화해주세요.\n\n활성화 후 로그인할 수 있습니다.`);
+        platform.alert(
+          '회원가입 완료',
+          `${email}로 인증 메일을 발송했습니다.\n\n이메일을 확인하고 "Confirm your mail" 링크를 클릭하여 계정을 활성화해주세요.\n\n활성화 후 로그인할 수 있습니다.`
+        );
         
         // 로그인 모드로 전환
         setIsSignUp(false);
@@ -112,7 +112,10 @@ export default function LoginScreen() {
           if (!authData.user.email_confirmed_at) {
             console.log('이메일 미인증');
             setLoading(false);
-            alert('이메일 인증 필요\n\n아직 이메일 인증이 완료되지 않았습니다.\n\n받은 메일함을 확인하고 "Confirm your mail" 링크를 클릭해주세요.\n\n메일을 받지 못했다면 스팸함을 확인해보세요.');
+            platform.alert(
+              '이메일 인증 필요',
+              '아직 이메일 인증이 완료되지 않았습니다.\n\n받은 메일함을 확인하고 "Confirm your mail" 링크를 클릭해주세요.\n\n메일을 받지 못했다면 스팸함을 확인해보세요.'
+            );
             return;
           }
 
@@ -158,7 +161,7 @@ export default function LoginScreen() {
         }
       }
       
-      alert((isSignUp ? '회원가입 실패\n\n' : '로그인 실패\n\n') + errorMessage);
+      platform.alert(isSignUp ? '회원가입 실패' : '로그인 실패', errorMessage);
       setLoading(false);
     }
   };
@@ -178,7 +181,7 @@ export default function LoginScreen() {
   const completeTestLogin = async (authData: any) => {
     if (!authData.user) return;
     if (!authData.user.email_confirmed_at) {
-      Alert.alert(
+      platform.alert(
         '이메일 인증 필요',
         'Supabase 대시보드 > Authentication > Users에서 test@jugobatgo.com 계정을 찾아 "Confirm email"을 클릭해주세요.\n\n또는 Supabase > Authentication > Providers > Email에서 "Confirm email"을 비활성화한 뒤 계정을 다시 생성해주세요.'
       );
@@ -196,7 +199,7 @@ export default function LoginScreen() {
       }
       router.replace('/');
     } catch (backendError: any) {
-      Alert.alert(
+      platform.alert(
         '백엔드 연결 실패',
         '로그인은 성공했지만 백엔드 서버에 연결할 수 없습니다.\n\n"게스트로 둘러보기"를 사용하시거나, 백엔드 실행 후 다시 시도해주세요.'
       );
@@ -226,7 +229,7 @@ export default function LoginScreen() {
           if (signUpData.session) {
             await completeTestLogin(signUpData);
           } else if (signUpData.user) {
-            Alert.alert(
+            platform.alert(
               '계정 생성됨',
               'test@jugobatgo.com 계정이 생성되었습니다.\n\nSupabase 대시보드에서 이메일 인증을 완료하거나, "Confirm email" 비활성화 후 "테스트 계정으로 로그인"을 다시 눌러주세요.'
             );
@@ -235,17 +238,17 @@ export default function LoginScreen() {
           setLoading(false);
           const signUpMsg = signUpError?.message || String(signUpError);
           if (signUpMsg.toLowerCase().includes('already registered')) {
-            Alert.alert(
+            platform.alert(
               '비밀번호 확인',
               '테스트 계정이 이미 있습니다. 비밀번호가 Test123456! 가 맞는지 확인해주세요.\n\nSupabase 대시보드에서 비밀번호를 재설정할 수 있습니다.'
             );
           } else {
-            Alert.alert('계정 생성 실패', signUpMsg);
+            platform.alert('계정 생성 실패', signUpMsg);
           }
         }
       } else {
         setLoading(false);
-        Alert.alert('로그인 실패', msg || '알 수 없는 오류');
+        platform.alert('로그인 실패', msg || '알 수 없는 오류');
       }
     }
   };
@@ -268,14 +271,14 @@ export default function LoginScreen() {
           router.replace('/');
         } catch (backendError: any) {
           setLoading(false);
-          Alert.alert(
+          platform.alert(
             '백엔드 연결 필요',
             '계정이 생성되었지만 백엔드 서버를 먼저 실행해주세요.\n\n(jugobatgo-server에서 npm run start:dev 실행 후 "테스트 계정으로 로그인" 시도)'
           );
         }
       } else {
         setLoading(false);
-        Alert.alert(
+        platform.alert(
           '회원가입 완료',
           'test@jugobatgo.com로 인증 메일을 발송했습니다.\n\n이메일을 확인하고 "Confirm your mail" 링크를 클릭한 뒤, "테스트 계정으로 로그인"을 눌러주세요.\n\n(개발 시 Supabase에서 이메일 확인 비활성화하면 바로 로그인됩니다)'
         );
@@ -283,9 +286,9 @@ export default function LoginScreen() {
     } catch (error: any) {
       setLoading(false);
       if (error.message?.includes('already registered')) {
-        Alert.alert('알림', '이미 테스트 계정이 있습니다. "테스트 계정으로 로그인"을 눌러주세요.');
+        platform.alert('알림', '이미 테스트 계정이 있습니다. "테스트 계정으로 로그인"을 눌러주세요.');
       } else {
-        Alert.alert('생성 실패', error.message || '계정 생성 중 오류가 발생했습니다.');
+        platform.alert('생성 실패', error.message || '계정 생성 중 오류가 발생했습니다.');
       }
     }
   };
@@ -294,7 +297,7 @@ export default function LoginScreen() {
   const handleGuestMode = () => {
     console.log('=== 게스트 모드 클릭 ===');
 
-    Alert.alert(
+    platform.alertWithButtons(
       '게스트 모드',
       '게스트 모드로 계속하시겠습니까?\n일부 기능이 제한될 수 있습니다.',
       [
@@ -325,7 +328,7 @@ export default function LoginScreen() {
       {/* 헤더 */}
       <View
         style={{
-          paddingTop: Platform.OS === 'web' ? 60 : 80,
+          paddingTop: platform.headerPaddingTop,
           paddingHorizontal: 24,
           alignItems: 'center',
         }}
@@ -455,7 +458,7 @@ export default function LoginScreen() {
         </View>
 
         {/* 소셜 로그인 버튼들 */}
-        {Platform.OS === 'web' && (
+        {platform.isWeb && (
           <>
             {/* Google 로그인 */}
             <TouchableOpacity

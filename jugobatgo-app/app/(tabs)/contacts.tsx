@@ -7,10 +7,10 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
-  Alert,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { platform } from '../../src/utils/platform';
 import { contactsApi, Contact } from '../../src/api/contacts';
 import { ledgerApi } from '../../src/api/ledger';
 import * as Contacts from 'expo-contacts';
@@ -54,11 +54,7 @@ export default function ContactsScreen() {
       setLedgerGroups(groupsData);
     } catch (error) {
       console.error('데이터 로딩 실패:', error);
-      if (Platform.OS === 'web') {
-        alert('데이터를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.');
-      } else {
-        Alert.alert('오류', '데이터를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.');
-      }
+      platform.alert('오류', '데이터를 불러올 수 없습니다.\n잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -66,11 +62,7 @@ export default function ContactsScreen() {
 
   const syncPhoneContacts = async () => {
     if (isGuest) {
-      if (Platform.OS === 'web') {
-        alert('게스트 모드에서는 연락처 동기화를 사용할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
-      } else {
-        Alert.alert('알림', '게스트 모드에서는 연락처 동기화를 사용할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
-      }
+      platform.alert('알림', '게스트 모드에서는 연락처 동기화를 사용할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
       return;
     }
     try {
@@ -79,11 +71,7 @@ export default function ContactsScreen() {
       // 권한 요청
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== 'granted') {
-        if (Platform.OS === 'web') {
-          alert('연락처 접근 권한이 필요합니다');
-        } else {
-          Alert.alert('권한 필요', '연락처 접근 권한이 필요합니다');
-        }
+        platform.alert('권한 필요', '연락처 접근 권한이 필요합니다');
         return;
       }
 
@@ -93,11 +81,7 @@ export default function ContactsScreen() {
       });
 
       if (data.length === 0) {
-        if (Platform.OS === 'web') {
-          alert('가져올 연락처가 없습니다');
-        } else {
-          Alert.alert('알림', '가져올 연락처가 없습니다');
-        }
+        platform.alert('알림', '가져올 연락처가 없습니다');
         return;
       }
 
@@ -113,24 +97,16 @@ export default function ContactsScreen() {
       // 배치 업서트
       const result = await contactsApi.batchUpsert(contactsToSync);
 
-      if (Platform.OS === 'web') {
-        alert(`연락처 동기화 완료!\n성공: ${result.success.length}건\n실패: ${result.failed.length}건`);
-      } else {
-        Alert.alert(
-          '동기화 완료',
-          `성공: ${result.success.length}건\n실패: ${result.failed.length}건`
-        );
-      }
+      platform.alert(
+        '동기화 완료',
+        `성공: ${result.success.length}건\n실패: ${result.failed.length}건`
+      );
 
       // 새로고침
       await loadData();
     } catch (error) {
       console.error('연락처 동기화 실패:', error);
-      if (Platform.OS === 'web') {
-        alert('연락처 동기화에 실패했습니다');
-      } else {
-        Alert.alert('오류', '연락처 동기화에 실패했습니다');
-      }
+      platform.alert('오류', '연락처 동기화에 실패했습니다');
     } finally {
       setSyncing(false);
     }
@@ -149,11 +125,7 @@ export default function ContactsScreen() {
   const saveContactGroup = async () => {
     if (!editingContact) return;
     if (isGuest) {
-      if (Platform.OS === 'web') {
-        alert('게스트 모드에서는 장부 그룹을 변경할 수 없습니다.');
-      } else {
-        Alert.alert('알림', '게스트 모드에서는 장부 그룹을 변경할 수 없습니다.');
-      }
+      platform.alert('알림', '게스트 모드에서는 장부 그룹을 변경할 수 없습니다.');
       return;
     }
     try {
@@ -161,37 +133,22 @@ export default function ContactsScreen() {
         ledgerGroupId: selectedGroupId || undefined,
       });
 
-      if (Platform.OS === 'web') {
-        alert('장부 그룹이 설정되었습니다');
-      } else {
-        Alert.alert('완료', '장부 그룹이 설정되었습니다');
-      }
+      platform.alert('완료', '장부 그룹이 설정되었습니다');
 
       closeEditModal();
       await loadData();
     } catch (error) {
       console.error('장부 그룹 설정 실패:', error);
-      if (Platform.OS === 'web') {
-        alert('장부 그룹 설정에 실패했습니다');
-      } else {
-        Alert.alert('오류', '장부 그룹 설정에 실패했습니다');
-      }
+      platform.alert('오류', '장부 그룹 설정에 실패했습니다');
     }
   };
 
   const deleteContact = async (contact: Contact) => {
-    const confirmDelete = Platform.OS === 'web'
-      ? confirm(`"${contact.name}" 연락처를 삭제하시겠습니까?`)
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            '연락처 삭제',
-            `"${contact.name}" 연락처를 삭제하시겠습니까?`,
-            [
-              { text: '취소', style: 'cancel', onPress: () => resolve(false) },
-              { text: '삭제', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          );
-        });
+    const confirmDelete = await platform.confirm(
+      '연락처 삭제',
+      `"${contact.name}" 연락처를 삭제하시겠습니까?`,
+      { confirmText: '삭제', cancelText: '취소' }
+    );
 
     if (!confirmDelete) return;
 
@@ -200,11 +157,7 @@ export default function ContactsScreen() {
       await loadData();
     } catch (error) {
       console.error('연락처 삭제 실패:', error);
-      if (Platform.OS === 'web') {
-        alert('연락처 삭제에 실패했습니다');
-      } else {
-        Alert.alert('오류', '연락처 삭제에 실패했습니다');
-      }
+      platform.alert('오류', '연락처 삭제에 실패했습니다');
     }
   };
 
@@ -251,7 +204,10 @@ export default function ContactsScreen() {
           {syncing ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
-            <Text style={styles.syncButtonText}>📱 동기화</Text>
+            <View style={styles.syncButtonContent}>
+              <Ionicons name="phone-portrait-outline" size={18} color="white" />
+              <Text style={styles.syncButtonText}> 동기화</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -327,7 +283,7 @@ export default function ContactsScreen() {
       <ScrollView style={styles.listSection}>
         {filteredContacts.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📇</Text>
+            <Ionicons name="people-outline" size={48} color="#9ca3af" />
             <Text style={styles.emptyText}>
               {searchQuery
                 ? '검색 결과가 없습니다'
@@ -369,13 +325,13 @@ export default function ContactsScreen() {
                       style={styles.editButton}
                       onPress={() => openEditModal(contact)}
                     >
-                      <Text style={styles.editButtonText}>📝</Text>
+                      <Ionicons name="create-outline" size={20} color="#374151" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => deleteContact(contact)}
                     >
-                      <Text style={styles.deleteButtonText}>🗑️</Text>
+                      <Ionicons name="trash-outline" size={20} color="#374151" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -486,6 +442,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  syncButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   syncButtonText: {
     color: 'white',
     fontWeight: '600',
@@ -537,10 +497,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 64,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
   },
   emptyText: {
     fontSize: 16,
@@ -623,23 +579,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  editButtonText: {
-    fontSize: 18,
   },
   deleteButton: {
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  deleteButtonText: {
-    fontSize: 18,
   },
   // 모달 스타일
   modal: {

@@ -10,6 +10,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Contacts from 'expo-contacts';
 import { contactsApi } from '../../src/api/contacts';
 import { ledgerApi } from '../../src/api/ledger';
@@ -190,7 +191,9 @@ export default function ContactsSyncScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.centerContent}>
-          <Text style={styles.emptyIcon}>📱</Text>
+          <View style={{ marginBottom: 16 }}>
+            <Ionicons name="phone-portrait-outline" size={48} color="#9ca3af" />
+          </View>
           <Text style={styles.emptyTitle}>주소록 권한이 필요합니다</Text>
           <Text style={styles.emptyText}>
             연락처를 불러오려면 주소록 접근 권한을 허용해주세요.
@@ -216,7 +219,9 @@ export default function ContactsSyncScreen() {
       <View style={styles.contentContainer}>
         {phoneContacts.length === 0 ? (
           <View style={styles.centerContent}>
-            <Text style={styles.emptyIcon}>📇</Text>
+            <View style={{ marginBottom: 16 }}>
+            <Ionicons name="people-outline" size={48} color="#9ca3af" />
+          </View>
             <Text style={styles.emptyTitle}>연락처를 불러와주세요</Text>
             <Text style={styles.emptyText}>
               휴대폰 주소록에서 경조사 관리할 사람을 선택할 수 있습니다.
@@ -353,10 +358,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 20,

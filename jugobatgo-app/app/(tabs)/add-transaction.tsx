@@ -6,11 +6,9 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  Alert,
   ActivityIndicator,
-  Image,
-  Platform,
 } from 'react-native';
+import { platform } from '../../src/utils/platform';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { transactionsApi } from '../../src/api/transactions';
@@ -105,11 +103,7 @@ export default function AddTransactionScreen() {
         errorMessage = '서버 응답 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.';
       }
       
-      if (Platform.OS === 'web') {
-        alert(errorMessage);
-      } else {
-        Alert.alert('오류', errorMessage);
-      }
+      platform.alert('오류', errorMessage);
     }
   };
   
@@ -142,11 +136,7 @@ export default function AddTransactionScreen() {
         errorMessage = '서버 응답 시간이 초과되었습니다.';
       }
       
-      if (Platform.OS === 'web') {
-        alert(errorMessage);
-      } else {
-        Alert.alert('오류', errorMessage);
-      }
+      platform.alert('오류', errorMessage);
     }
   };
 
@@ -161,11 +151,7 @@ export default function AddTransactionScreen() {
       // 권한 요청
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        if (Platform.OS === 'web') {
-          alert('사진 라이브러리 접근 권한이 필요합니다');
-        } else {
-          Alert.alert('권한 필요', '사진 라이브러리 접근 권한이 필요합니다');
-        }
+      platform.alert('권한 필요', '사진 라이브러리 접근 권한이 필요합니다');
         return;
       }
 
@@ -186,11 +172,7 @@ export default function AddTransactionScreen() {
       }
     } catch (error) {
       console.error('이미지 선택 실패:', error);
-      if (Platform.OS === 'web') {
-        alert('이미지 선택에 실패했습니다');
-      } else {
-        Alert.alert('오류', '이미지 선택에 실패했습니다');
-      }
+      platform.alert('오류', '이미지 선택에 실패했습니다');
     }
   };
 
@@ -199,11 +181,7 @@ export default function AddTransactionScreen() {
       // 카메라 권한 요청
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        if (Platform.OS === 'web') {
-          alert('카메라 접근 권한이 필요합니다');
-        } else {
-          Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다');
-        }
+      platform.alert('권한 필요', '카메라 접근 권한이 필요합니다');
         return;
       }
 
@@ -223,38 +201,12 @@ export default function AddTransactionScreen() {
       }
     } catch (error) {
       console.error('사진 촬영 실패:', error);
-      if (Platform.OS === 'web') {
-        alert('사진 촬영에 실패했습니다');
-      } else {
-        Alert.alert('오류', '사진 촬영에 실패했습니다');
-      }
+      platform.alert('오류', '사진 촬영에 실패했습니다');
     }
   };
 
   const showImagePicker = () => {
-    if (Platform.OS === 'web') {
-      // 웹에서는 바로 갤러리 선택
-      pickImage();
-    } else {
-      Alert.alert(
-        '이미지 선택',
-        '어떤 방법으로 추가하시겠습니까?',
-        [
-          {
-            text: '카메라',
-            onPress: takePhoto,
-          },
-          {
-            text: '갤러리',
-            onPress: pickImage,
-          },
-          {
-            text: '취소',
-            style: 'cancel',
-          },
-        ]
-      );
-    }
+    platform.showImagePickerOptions(takePhoto, pickImage);
   };
 
   const analyzeImageAndUpload = async (imageUri: string) => {
@@ -274,37 +226,24 @@ export default function AddTransactionScreen() {
       setAmount(estimation.estimatedPrice.toString());
       setCategory('GIFT');
 
-      if (Platform.OS === 'web') {
-        alert(`AI 분석 완료\n\n선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`);
-      } else {
-        Alert.alert(
-          'AI 분석 완료',
-          `선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`,
-          [{ text: '확인' }]
-        );
-      }
+      platform.alert(
+        'AI 분석 완료',
+        `선물: ${estimation.giftName}\n예상 가격: ${estimation.estimatedPrice.toLocaleString()}원\n신뢰도: ${estimation.confidence}`
+      );
     } catch (error: any) {
       console.error('처리 실패:', error);
       
       // 업로드는 성공했지만 AI 분석만 실패한 경우
       if (uploadedImageUrl) {
-        if (Platform.OS === 'web') {
-          alert('이미지 업로드 완료\n\nAI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.');
-        } else {
-          Alert.alert(
-            '이미지 업로드 완료',
-            'AI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.',
-          );
-        }
+        platform.alert(
+          '이미지 업로드 완료',
+          'AI 분석에 실패했습니다. 수동으로 입력해주세요.\n이미지는 저장되었습니다.'
+        );
       } else {
-        if (Platform.OS === 'web') {
-          alert(error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.');
-        } else {
-          Alert.alert(
-            '처리 실패',
-            error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.',
-          );
-        }
+        platform.alert(
+          '처리 실패',
+          error.message || '이미지 처리에 실패했습니다. 수동으로 입력해주세요.'
+        );
       }
     } finally {
       setIsAnalyzing(false);
@@ -314,36 +253,23 @@ export default function AddTransactionScreen() {
 
   const handleSubmit = async () => {
     if (isGuest) {
-      if (Platform.OS === 'web') {
-        alert('게스트 모드에서는 거래를 추가할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
-      } else {
-        Alert.alert('알림', '게스트 모드에서는 거래를 추가할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
-      }
+      platform.alert('알림', '게스트 모드에서는 거래를 추가할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
       return;
     }
     // 유효성 검사
     if (!selectedContact) {
-      if (Platform.OS === 'web') {
-        alert('연락처를 선택해주세요');
-      } else {
-        Alert.alert('오류', '연락처를 선택해주세요');
-      }
+      platform.alert('오류', '연락처를 선택해주세요');
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
-      if (Platform.OS === 'web') {
-        alert('올바른 금액을 입력해주세요');
-      } else {
-        Alert.alert('오류', '올바른 금액을 입력해주세요');
-      }
+      platform.alert('오류', '올바른 금액을 입력해주세요');
       return;
     }
     if (!selectedContact.ledgerGroupId) {
-      if (Platform.OS === 'web') {
-        alert('선택한 연락처에 장부 그룹이 설정되어 있지 않습니다.\n연락처 탭에서 장부 그룹을 설정해주세요.');
-      } else {
-        Alert.alert('오류', '선택한 연락처에 장부 그룹이 설정되어 있지 않습니다.\n연락처 탭에서 장부 그룹을 설정해주세요.');
-      }
+      platform.alert(
+        '오류',
+        '선택한 연락처에 장부 그룹이 설정되어 있지 않습니다.\n연락처 탭에서 장부 그룹을 설정해주세요.'
+      );
       return;
     }
 
@@ -379,49 +305,30 @@ export default function AddTransactionScreen() {
 
       // 성공 알림
       const confirmMessage = `${type === 'GIVE' ? '준' : '받은'} 거래가 성공적으로 추가되었습니다.\n\n${selectedContact.name} - ${parseFloat(amount).toLocaleString()}원`;
-      
-      if (Platform.OS === 'web') {
-        const continueAdding = confirm(`✅ 추가 완료\n\n${confirmMessage}\n\n계속 추가하시겠습니까?`);
-        if (continueAdding) {
-          // 폼 초기화
-          setSearchQuery('');
-          setSelectedContact(null);
-          setAmount('');
-          setGiftName('');
-          setMemo('');
-          setSelectedImage(null);
-          setUploadedImageUrl(null);
-        } else {
-          router.replace('/');
-        }
-      } else {
-        Alert.alert(
-          '✅ 추가 완료', 
-          confirmMessage,
-          [
-            {
-              text: '홈으로',
-              onPress: () => {
-                router.replace('/');
-              },
+
+      platform.alertWithButtons(
+        '✅ 추가 완료',
+        `${confirmMessage}\n\n계속 추가하시겠습니까?`,
+        [
+          {
+            text: '홈으로',
+            onPress: () => router.replace('/'),
+          },
+          {
+            text: '계속 추가',
+            onPress: () => {
+              setSearchQuery('');
+              setSelectedContact(null);
+              setAmount('');
+              setGiftName('');
+              setMemo('');
+              setSelectedImage(null);
+              setUploadedImageUrl(null);
             },
-            {
-              text: '계속 추가',
-              onPress: () => {
-                // 폼 초기화
-                setSearchQuery('');
-                setSelectedContact(null);
-                setAmount('');
-                setGiftName('');
-                setMemo('');
-                setSelectedImage(null);
-                setUploadedImageUrl(null);
-              },
-              style: 'cancel',
-            },
-          ]
-        );
-      }
+            style: 'cancel',
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('거래 추가 실패:', error);
       
@@ -436,11 +343,7 @@ export default function AddTransactionScreen() {
         errorMessage = error.message;
       }
       
-      if (Platform.OS === 'web') {
-        alert(`❌ 추가 실패\n\n${errorMessage}`);
-      } else {
-        Alert.alert('❌ 추가 실패', errorMessage);
-      }
+      platform.alert('❌ 추가 실패', errorMessage);
     } finally {
       setLoading(false);
     }
