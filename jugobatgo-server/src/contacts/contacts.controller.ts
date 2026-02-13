@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
+import { BatchUpsertContactsDto } from './dto/batch-upsert-contacts.dto';
 
 @ApiTags('contacts')
 @Controller('contacts')
@@ -14,6 +15,13 @@ export class ContactsController {
   @ApiResponse({ status: 201, description: '연락처가 생성되었습니다.' })
   create(@Body() createContactDto: CreateContactDto) {
     return this.contactsService.create(createContactDto);
+  }
+
+  @Post('batch-upsert')
+  @ApiOperation({ summary: '연락처 대량 업서트 (주소록 동기화)' })
+  @ApiResponse({ status: 201, description: '성공/실패 건수를 반환합니다.' })
+  batchUpsert(@Body() dto: BatchUpsertContactsDto) {
+    return this.contactsService.batchUpsert(dto);
   }
 
   @Get()

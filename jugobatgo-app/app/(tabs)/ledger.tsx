@@ -28,9 +28,12 @@ interface GroupStats {
   temperature: number;
 }
 
+const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
+
 export default function LedgerListScreen() {
   const { user } = useAuthStore();
-  const isGuest = user?.id === 'guest';
+  const isGuest = !user || user.id === 'guest';
+  const userId = user?.id ?? DEMO_USER_ID;
   const [groups, setGroups] = useState<LedgerGroup[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<GroupStats[]>([]);
@@ -57,7 +60,7 @@ export default function LedgerListScreen() {
       }
 
       const [groupsData, transactionsData] = await Promise.all([
-        ledgerApi.getAll(),
+        ledgerApi.getAll(userId),
         transactionsApi.getAll(),
       ]);
 

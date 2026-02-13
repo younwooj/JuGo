@@ -11,9 +11,11 @@ export interface Contact {
 }
 
 export const contactsApi = {
-  // 모든 연락처 조회
-  getAll: async (): Promise<Contact[]> => {
-    const response = await apiClient.get('/contacts');
+  // 모든 연락처 조회 (userId 필수)
+  getAll: async (userId: string): Promise<Contact[]> => {
+    const response = await apiClient.get('/contacts', {
+      params: { userId },
+    });
     return response.data;
   },
 
@@ -24,17 +26,16 @@ export const contactsApi = {
   },
 
   // 이름으로 검색
-  searchByName: async (name: string): Promise<Contact[]> => {
-    const response = await apiClient.get('/contacts');
-    const contacts: Contact[] = response.data;
+  searchByName: async (userId: string, name: string): Promise<Contact[]> => {
+    const contacts = await contactsApi.getAll(userId);
     return contacts.filter(c => c.name.includes(name));
   },
 
-  // 전화번호로 검색
-  findByPhone: async (phoneNumber: string): Promise<Contact | null> => {
-    const response = await apiClient.get('/contacts');
-    const contacts: Contact[] = response.data;
-    return contacts.find(c => c.phoneNumber === phoneNumber) || null;
+  // 전화번호로 검색 (userId 기준)
+  findByPhone: async (userId: string, phoneNumber: string): Promise<Contact | null> => {
+    const contacts = await contactsApi.getAll(userId);
+    const normalized = phoneNumber.replace(/\D/g, '');
+    return contacts.find(c => c.phoneNumber.replace(/\D/g, '') === normalized) || null;
   },
 
   // 연락처 생성
@@ -66,69 +67,26 @@ export const contactsApi = {
     phoneNumber: string;
     ledgerGroupId?: string;
   }): Promise<Contact> => {
-    // 전화번호로 먼저 검색
-    const existing = await contactsApi.findByPhone(data.phoneNumber);
-    if (existing) {
-      return existing;
-    }
-    // 없으면 새로 생성
+    const existing = await contactsApi.findByPhone(data.userId, data.phoneNumber);
+    if (existing) return existing;
     return await contactsApi.create(data);
   },
 
-  // 대량 업서트 (Batch Upsert)
-  batchUpsert: async (contacts: Array<{
-    userId: string;
-    name: string;
-    phoneNumber: string;
-    ledgerGroupId?: string;
-  }>): Promise<{
-    success: Contact[];
-    failed: Array<{ contact: any; error: string }>;
+  // 대량 업서트 (Batch Upsert) — 서버 한 번 호출로 처리
+  batchUpsert: async (
+    userId: string,
+    contacts: Array<{ name: string; phoneNumber: string }>,
+  ): Promise<{
+    success: Array<{ id: string; name: string; phoneNumber: string }>;
+    failed: Array<{ contact: { name: string; phoneNumber: string }; error: string }>;
   }> => {
-    const success: Contact[] = [];
-    const failed: Array<{ contact: any; error: string }> = [];
-
-    // 배치 크기 설정 (동시 처리 수 제한)
-    const BATCH_SIZE = 10;
-    
-    for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
-      const batch = contacts.slice(i, i + BATCH_SIZE);
-      
-      const results = await Promise.allSettled(
-        batch.map(async (contact) => {
-          try {
-            // 전화번호로 기존 연락처 확인
-            const existing = await contactsApi.findByPhone(contact.phoneNumber);
-            
-            if (existing) {
-              // 기존 연락처 업데이트 (장부 그룹 변경 등)
-              if (contact.ledgerGroupId && existing.ledgerGroupId !== contact.ledgerGroupId) {
-                return await contactsApi.update(existing.id, {
-                  ledgerGroupId: contact.ledgerGroupId,
-                  name: contact.name, // 이름도 업데이트
-                });
-              }
-              return existing;
-            } else {
-              // 새 연락처 생성
-              return await contactsApi.create(contact);
-            }
-          } catch (error: any) {
-            throw { contact, error: error.message || '처리 실패' };
-          }
-        })
-      );
-
-      // 결과 분류
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          success.push(result.value);
-        } else {
-          failed.push(result.reason);
-        }
-      });
+    if (contacts.length === 0) {
+      return { success: [], failed: [] };
     }
-
-    return { success, failed };
+    const response = await apiClient.post('/contacts/batch-upsert', {
+      userId,
+      contacts: contacts.map(({ name, phoneNumber }) => ({ name, phoneNumber })),
+    });
+    return response.data;
   },
 };

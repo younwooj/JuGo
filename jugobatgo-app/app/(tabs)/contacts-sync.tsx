@@ -14,8 +14,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Contacts from 'expo-contacts';
 import { contactsApi } from '../../src/api/contacts';
 import { ledgerApi } from '../../src/api/ledger';
+import { useAuthStore } from '../../src/store/authStore';
 
-// 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 interface PhoneContact {
@@ -28,6 +28,8 @@ interface PhoneContact {
 
 export default function ContactsSyncScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const userId = user?.id ?? DEMO_USER_ID;
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [phoneContacts, setPhoneContacts] = useState<PhoneContact[]>([]);
@@ -37,11 +39,11 @@ export default function ContactsSyncScreen() {
   useEffect(() => {
     loadLedgerGroups();
     requestPermission();
-  }, []);
+  }, [userId]);
 
   const loadLedgerGroups = async () => {
     try {
-      const groups = await ledgerApi.getAll();
+      const groups = await ledgerApi.getAll(userId);
       setLedgerGroups(groups);
     } catch (error) {
       console.error('장부 그룹 로딩 실패:', error);
@@ -130,15 +132,12 @@ export default function ContactsSyncScreen() {
     setSyncing(true);
 
     try {
-      // 대량 업서트 API 호출
-      const contactsData = selectedContacts.map(contact => ({
-        userId: DEMO_USER_ID,
+      const contactsToSync = selectedContacts.map(contact => ({
         name: contact.name,
-        phoneNumber: contact.phoneNumbers[0], // 첫 번째 번호 사용
-        ledgerGroupId: contact.groupId!,
-      }));
+        phoneNumber: contact.phoneNumbers[0]?.trim() || '',
+      })).filter(c => c.phoneNumber.length > 0);
 
-      const { success, failed } = await contactsApi.batchUpsert(contactsData);
+      const { success, failed } = await contactsApi.batchUpsert(userId, contactsToSync);
 
       // 결과 표시
       if (failed.length === 0) {

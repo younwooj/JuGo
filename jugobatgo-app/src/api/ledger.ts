@@ -9,9 +9,11 @@ export interface LedgerGroup {
 }
 
 export const ledgerApi = {
-  // 모든 장부 그룹 조회
-  getAll: async (): Promise<LedgerGroup[]> => {
-    const response = await apiClient.get('/ledger/groups');
+  // 모든 장부 그룹 조회 (userId 필수)
+  getAll: async (userId: string): Promise<LedgerGroup[]> => {
+    const response = await apiClient.get('/ledger/groups', {
+      params: { userId },
+    });
     return response.data;
   },
 

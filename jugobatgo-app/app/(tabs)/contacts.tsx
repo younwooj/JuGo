@@ -17,12 +17,11 @@ import * as Contacts from 'expo-contacts';
 import { useAuthStore } from '../../src/store/authStore';
 import { MOCK_CONTACTS, MOCK_LEDGER_GROUPS } from '../../src/mock/demoData';
 
-const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
-
 export default function ContactsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isGuest = user?.id === 'guest';
+  const isGuest = !user || user.id === 'guest';
+  const userId = user?.id;
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -40,15 +39,15 @@ export default function ContactsScreen() {
     try {
       setLoading(true);
 
-      if (isGuest) {
+      if (isGuest || !userId) {
         setContacts(MOCK_CONTACTS);
         setLedgerGroups(MOCK_LEDGER_GROUPS);
         return;
       }
 
       const [contactsData, groupsData] = await Promise.all([
-        contactsApi.getAll(),
-        ledgerApi.getAll(),
+        contactsApi.getAll(userId),
+        ledgerApi.getAll(userId),
       ]);
       setContacts(contactsData);
       setLedgerGroups(groupsData);
@@ -85,17 +84,21 @@ export default function ContactsScreen() {
         return;
       }
 
-      // 연락처 변환
+      if (!userId) {
+        platform.alert('오류', '로그인 정보가 없습니다.');
+        return;
+      }
+
+      // 연락처 변환 (이름, 전화번호만 — 서버에서 userId 기준 upsert)
       const contactsToSync = data
         .filter((contact) => contact.phoneNumbers && contact.phoneNumbers.length > 0)
         .map((contact) => ({
-          userId: DEMO_USER_ID,
           name: contact.name || '이름 없음',
-          phoneNumber: contact.phoneNumbers![0].number || '',
-        }));
+          phoneNumber: contact.phoneNumbers![0].number?.trim() || '',
+        }))
+        .filter((c) => c.phoneNumber.length > 0);
 
-      // 배치 업서트
-      const result = await contactsApi.batchUpsert(contactsToSync);
+      const result = await contactsApi.batchUpsert(userId, contactsToSync);
 
       platform.alert(
         '동기화 완료',
@@ -465,8 +468,8 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     paddingHorizontal: 24,
-    paddingTop: 2,
-    paddingBottom: 2,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   filterSectionContent: {
     flexDirection: 'row',
@@ -475,7 +478,7 @@ const styles = StyleSheet.create({
   filterChip: {
     backgroundColor: 'white',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 12,
     marginRight: 8,
     borderWidth: 1,
@@ -496,6 +499,7 @@ const styles = StyleSheet.create({
   listSection: {
     flex: 1,
     paddingHorizontal: 24,
+    paddingTop: 4,
   },
   emptyState: {
     alignItems: 'center',

@@ -19,12 +19,12 @@ import { uploadImage } from '../../src/api/storage';
 import { useAuthStore } from '../../src/store/authStore';
 import { MOCK_CONTACTS } from '../../src/mock/demoData';
 
-// 하드코딩된 userId (실제로는 인증에서 가져와야 함)
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function AddTransactionScreen() {
   const { user } = useAuthStore();
-  const isGuest = user?.id === 'guest';
+  const isGuest = !user || user.id === 'guest';
+  const userId = user?.id ?? DEMO_USER_ID;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -90,7 +90,7 @@ export default function AddTransactionScreen() {
         setContacts(MOCK_CONTACTS);
         return;
       }
-      const contactsData = await contactsApi.getAll();
+      const contactsData = await contactsApi.getAll(userId);
       setContacts(contactsData);
     } catch (err: any) {
       console.error('데이터 로딩 실패:', err);

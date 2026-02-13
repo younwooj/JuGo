@@ -2,7 +2,7 @@
 
 **날짜**: 2026-01-10  
 **단계**: Phase 3 - 핵심 기능 완성  
-**상태**: ✅ 진행 중 (3/5 완료)
+**상태**: ✅ 진행 중 (4/5 완료)
 
 ---
 
@@ -285,14 +285,24 @@ PostgreSQL (imageUrl 저장)
 
 ---
 
-## 🔜 다음 작업 (Phase 3 나머지)
+### 4. Module 2.2: 연락처 대량 업서트(Upsert) ✅
 
-### 1. Module 2.2: 연락처 대량 업서트(Upsert) ⏳
-- Expo Contacts API 활용
-- 주소록 동기화
-- 중복 연락처 처리
+**백엔드**
+- `POST /contacts/batch-upsert` 추가 (`BatchUpsertContactsDto`: userId, contacts[])
+- 전화번호 정규화(숫자만) 저장·조회로 중복 방지
+- 기존 데이터 호환: 정규화/원본 둘 다로 조회 후 있으면 이름 갱신, 없으면 생성
 
-### 2. Module 1.3-1.4: 소셜 로그인 구현 ⏳
+**앱**
+- `contactsApi.getAll(userId)`, `contactsApi.batchUpsert(userId, contacts)` — userId 필수
+- `ledgerApi.getAll(userId)` — userId 쿼리 연동
+- 연락처 탭: 로그인 사용자 기준 동기화, 게스트 시 목 데이터
+- contacts-sync: 동일 batch-upsert 호출로 일괄 동기화
+
+---
+
+## 🔜 다음 작업 (Phase 3 마지막)
+
+### Module 1.3-1.4: 소셜 로그인 구현 ⏳ (마지막 Task)
 - Supabase Auth 통합
 - Kakao, Google, Naver OAuth
 - 세션 관리 (Zustand)
@@ -305,10 +315,10 @@ PostgreSQL (imageUrl 저장)
 - ✅ Module 5.1: 통계용 SQL View (완료)
 - ✅ Module 3.1: 거래 CRUD UI (완료)
 - ✅ Module 3.3: Supabase Storage (완료)
-- ⏳ Module 2.2: 연락처 업서트 (대기)
-- ⏳ Module 1.3-1.4: 소셜 로그인 (대기)
+- ✅ Module 2.2: 연락처 업서트 (완료)
+- ⏳ Module 1.3-1.4: 소셜 로그인 (마지막 Task)
 
-**전체 진행률: 60% (3/5 완료)**
+**전체 진행률: 80% (4/5 완료)**
 
 ---
 
@@ -335,4 +345,4 @@ PostgreSQL (imageUrl 저장)
 ---
 
 **작성일**: 2026-01-10  
-**다음 마일스톤**: Phase 3 완료 (소셜 로그인 & 연락처 동기화)
+**다음 마일스톤**: Phase 3 완료 (소셜 로그인)
