@@ -7,7 +7,10 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+// 플랫폼별: .native.tsx → 실제 DateTimePicker, .tsx → 웹용 fallback(빈 컴포넌트)
+import DateTimePicker from '../../src/components/DateTimePickerWrapper';
 import { platform } from '../../src/utils/platform';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -40,6 +43,8 @@ export default function AddTransactionScreen() {
   
   // 폼 상태
   const [searchQuery, setSearchQuery] = useState('');
+  const [transactionDate, setTransactionDate] = useState<Date>(() => new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [type, setType] = useState<'GIVE' | 'RECEIVE'>('GIVE');
   const [category, setCategory] = useState<'CASH' | 'GIFT' | 'GOLD'>('CASH');
   const [amount, setAmount] = useState('');
@@ -83,6 +88,7 @@ export default function AddTransactionScreen() {
           createdAt: '',
           updatedAt: '',
         } as Contact);
+        if (tx.eventDate) setTransactionDate(new Date(tx.eventDate));
         if ('imageUrl' in tx && tx.imageUrl) setUploadedImageUrl(tx.imageUrl);
       } catch (e) {
         console.error('거래 로드 실패:', e);
@@ -325,7 +331,7 @@ export default function AddTransactionScreen() {
           amount: parseFloat(amount),
           originalName: category !== 'CASH' ? giftName : undefined,
           memo: memo || undefined,
-          eventDate: new Date().toISOString(),
+          eventDate: transactionDate.toISOString(),
         };
         await transactionsApi.update(editId, updateData);
         platform.alert('수정 완료', '거래가 수정되었습니다.');
@@ -369,7 +375,7 @@ export default function AddTransactionScreen() {
         amount: parseFloat(amount),
         originalName: category !== 'CASH' ? giftName : undefined,
         memo: memo || undefined,
-        eventDate: new Date().toISOString(),
+        eventDate: transactionDate.toISOString(),
       };
       if (uploadedImageUrl) transactionData.imageUrl = uploadedImageUrl;
 
@@ -387,6 +393,7 @@ export default function AddTransactionScreen() {
             onPress: () => {
               setSearchQuery('');
               setSelectedContact(null);
+              setTransactionDate(new Date());
               setAmount('');
               setGiftName('');
               setMemo('');
@@ -491,6 +498,55 @@ export default function AddTransactionScreen() {
                 <Text style={styles.noResultsLink}>연락처 탭에서 추가하기 →</Text>
               </TouchableOpacity>
             </View>
+          )}
+        </View>
+
+        {/* 날짜 선택 */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>날짜</Text>
+          {Platform.OS === 'web' ? (
+            <TextInput
+              style={styles.input}
+              value={transactionDate.toISOString().slice(0, 10)}
+              onChangeText={(text) => {
+                const d = new Date(text);
+                if (!isNaN(d.getTime())) setTransactionDate(d);
+              }}
+              placeholder="YYYY-MM-DD"
+            />
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>
+                  {transactionDate.getFullYear()}년 {transactionDate.getMonth() + 1}월 {transactionDate.getDate()}일
+                </Text>
+                <Text style={styles.dateButtonHint}>탭하여 날짜 변경</Text>
+              </TouchableOpacity>
+              {showDatePicker && DateTimePicker && (
+                <>
+                  <DateTimePicker
+                    value={transactionDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(_, selectedDate) => {
+                      if (Platform.OS === 'android') setShowDatePicker(false);
+                      if (selectedDate) setTransactionDate(selectedDate);
+                    }}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity
+                      style={styles.dateConfirmButton}
+                      onPress={() => setShowDatePicker(false)}
+                    >
+                      <Text style={styles.dateConfirmButtonText}>확인</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </>
           )}
         </View>
 
@@ -935,6 +991,35 @@ const styles = StyleSheet.create({
   noResultsLink: {
     fontSize: 14,
     color: '#ef4444',
+    fontWeight: '600',
+  },
+  dateButton: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  dateButtonHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  dateConfirmButton: {
+    marginTop: 12,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  dateConfirmButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
   imagePickerButton: {
