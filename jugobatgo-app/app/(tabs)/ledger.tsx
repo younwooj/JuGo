@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ledgerApi } from '../../src/api/ledger';
 import { transactionsApi, Transaction } from '../../src/api/transactions';
 import { useAuthStore } from '../../src/store/authStore';
@@ -31,6 +32,7 @@ interface GroupStats {
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function LedgerListScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const isGuest = !user || user.id === 'guest';
   const userId = user?.id ?? DEMO_USER_ID;
@@ -197,7 +199,12 @@ export default function LedgerListScreen() {
           </View>
         ) : (
           stats.map((stat) => (
-            <TouchableOpacity key={stat.groupId} style={styles.groupCard}>
+            <TouchableOpacity
+              key={stat.groupId}
+              style={styles.groupCard}
+              onPress={() => router.push(`/ledger/${stat.groupId}`)}
+              activeOpacity={0.8}
+            >
               <View style={styles.groupHeader}>
                 <View>
                   <Text style={styles.groupName}>{stat.groupName}</Text>
