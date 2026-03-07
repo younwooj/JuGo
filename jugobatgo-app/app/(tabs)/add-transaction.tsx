@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { platform } from '../../src/utils/platform';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { transactionsApi } from '../../src/api/transactions';
 import { contactsApi, Contact } from '../../src/api/contacts';
@@ -22,6 +22,8 @@ import { MOCK_CONTACTS } from '../../src/mock/demoData';
 const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 
 export default function AddTransactionScreen() {
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const isEditMode = Boolean(editId);
   const { user } = useAuthStore();
   const isGuest = !user || user.id === 'guest';
   const userId = user?.id ?? DEMO_USER_ID;
@@ -53,6 +55,42 @@ export default function AddTransactionScreen() {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // 수정 모드: 거래 데이터 로드 후 폼에 반영
+  useEffect(() => {
+    if (!editId || isGuest) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tx = await transactionsApi.getById(editId);
+        if (cancelled) return;
+        setType(tx.type);
+        setCategory(tx.category);
+        setAmount(String(tx.amount));
+        setGiftName(tx.originalName || '');
+        setMemo(tx.memo || '');
+        if (tx.goldInfo && typeof tx.goldInfo === 'object') {
+          const g = tx.goldInfo as { purity?: string; weight?: number; unit?: string };
+          if (g.purity) setGoldKarat((g.purity as '24K' | '18K' | '14K') || '24K');
+          if (g.weight != null) setGoldWeight(String(g.weight));
+        }
+        setSelectedContact({
+          id: tx.contact.id,
+          name: tx.contact.name,
+          phoneNumber: tx.contact.phoneNumber,
+          userId,
+          ledgerGroupId: tx.ledgerGroupId,
+          createdAt: '',
+          updatedAt: '',
+        } as Contact);
+        if ('imageUrl' in tx && tx.imageUrl) setUploadedImageUrl(tx.imageUrl);
+      } catch (e) {
+        console.error('거래 로드 실패:', e);
+        if (!cancelled) platform.alert('오류', '거래 정보를 불러올 수 없습니다.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [editId, isGuest, userId]);
   
   useEffect(() => {
     // 카테고리가 금으로 변경되면 최신 시세 불러오기
@@ -256,13 +294,38 @@ export default function AddTransactionScreen() {
       platform.alert('알림', '게스트 모드에서는 거래를 추가할 수 없습니다.\n테스트 계정으로 로그인해주세요.');
       return;
     }
-    // 유효성 검사
-    if (!selectedContact) {
-      platform.alert('오류', '연락처를 선택해주세요');
-      return;
-    }
     if (!amount || parseFloat(amount) <= 0) {
       platform.alert('오류', '올바른 금액을 입력해주세요');
+      return;
+    }
+
+    // 수정 모드
+    if (isEditMode && editId) {
+      setLoading(true);
+      try {
+        const updateData: any = {
+          type,
+          category,
+          amount: parseFloat(amount),
+          originalName: category !== 'CASH' ? giftName : undefined,
+          memo: memo || undefined,
+          eventDate: new Date().toISOString(),
+        };
+        await transactionsApi.update(editId, updateData);
+        platform.alert('수정 완료', '거래가 수정되었습니다.');
+        router.back();
+      } catch (error: any) {
+        console.error('거래 수정 실패:', error);
+        platform.alert('오류', error?.response?.data?.message || error?.message || '수정에 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // 추가 모드: 연락처·장부 그룹 필수
+    if (!selectedContact) {
+      platform.alert('오류', '연락처를 선택해주세요');
       return;
     }
     if (!selectedContact.ledgerGroupId) {
@@ -282,7 +345,6 @@ export default function AddTransactionScreen() {
         category,
       });
 
-      // 거래 생성
       const transactionData: any = {
         contactId: selectedContact.id,
         ledgerGroupId: selectedContact.ledgerGroupId,
@@ -293,27 +355,17 @@ export default function AddTransactionScreen() {
         memo: memo || undefined,
         eventDate: new Date().toISOString(),
       };
+      if (uploadedImageUrl) transactionData.imageUrl = uploadedImageUrl;
 
-      // 이미지 URL이 있으면 추가
-      if (uploadedImageUrl) {
-        transactionData.imageUrl = uploadedImageUrl;
-      }
+      await transactionsApi.create(transactionData);
 
-      const transaction = await transactionsApi.create(transactionData);
-
-      console.log('거래 생성 완료:', transaction);
-
-      // 성공 알림
       const confirmMessage = `${type === 'GIVE' ? '준' : '받은'} 거래가 성공적으로 추가되었습니다.\n\n${selectedContact.name} - ${parseFloat(amount).toLocaleString()}원`;
 
       platform.alertWithButtons(
         '✅ 추가 완료',
         `${confirmMessage}\n\n계속 추가하시겠습니까?`,
         [
-          {
-            text: '홈으로',
-            onPress: () => router.replace('/'),
-          },
+          { text: '홈으로', onPress: () => router.replace('/') },
           {
             text: '계속 추가',
             onPress: () => {
@@ -353,7 +405,7 @@ export default function AddTransactionScreen() {
     <View style={styles.container}>
       {/* 상단 고정: 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>새 거래 추가</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? '거래 수정' : '새 거래 추가'}</Text>
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -641,7 +693,7 @@ export default function AddTransactionScreen() {
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.submitButtonText}>추가하기</Text>
+            <Text style={styles.submitButtonText}>{isEditMode ? '수정 완료' : '추가하기'}</Text>
           )}
         </TouchableOpacity>
       </View>

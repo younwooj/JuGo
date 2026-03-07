@@ -77,6 +77,15 @@ export const authApi = {
   },
 };
 
+// loca.lt 등 터널 사용 시 우회 페이지 스킵용 헤더
+const getBackendHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (API_BASE_URL.includes('loca.lt')) {
+    headers['Bypass-Tunnel-Reminder'] = 'true';
+  }
+  return headers;
+};
+
 // 백엔드 API와 연동하여 사용자 프로필 생성/가져오기
 export const userApi = {
   // 사용자 프로필 생성
@@ -88,9 +97,7 @@ export const userApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getBackendHeaders(),
         body: JSON.stringify(userData),
       });
 
@@ -105,32 +112,41 @@ export const userApi = {
     }
   },
 
-  // 이메일로 사용자 프로필 가져오기
-  getUserProfileByEmail: async (email: string) => {
+  // 이메일로 사용자 프로필 가져오기 (404/연결 실패 시 null 반환 가능)
+  getUserProfileByEmail: async (email: string): Promise<any | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users?email=${email}`);
-      
+      const response = await fetch(`${API_BASE_URL}/users?email=${encodeURIComponent(email)}`, {
+        headers: getBackendHeaders(),
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
       if (!response.ok) {
-        throw new Error('Failed to get user profile');
+        throw new Error(`Failed to get user profile (${response.status})`);
       }
 
       const users = await response.json();
-      return users.find((user: any) => user.email === email);
+      const user = Array.isArray(users) ? users.find((u: any) => u?.email === email) : null;
+      return user ?? null;
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      console.warn('getUserProfileByEmail failed:', error);
       throw error;
     }
   },
 
-  // 사용자 프로필 가져오기 또는 생성
+  // 사용자 프로필 가져오기 또는 생성 (조회 실패 시에도 생성 시도)
   getOrCreateUserProfile: async (supabaseUser: any) => {
     const email = supabaseUser.email;
     const provider = supabaseUser.app_metadata?.provider || 'email';
 
-    // 먼저 기존 사용자 확인
-    let userProfile = await userApi.getUserProfileByEmail(email);
+    let userProfile: any = null;
+    try {
+      userProfile = await userApi.getUserProfileByEmail(email);
+    } catch (_) {
+      // 백엔드 미실행/오류 시 조회 실패 → 아래에서 생성 시도
+    }
 
-    // 없으면 생성
     if (!userProfile) {
       userProfile = await userApi.createUserProfile({
         email,

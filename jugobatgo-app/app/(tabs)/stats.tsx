@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LineChart, PieChart, BarChart } from 'react-native-gifted-charts';
 import {
@@ -34,6 +35,7 @@ const DEMO_USER_ID = 'dac1f274-38a5-4e4d-9df1-ab0f09c6bb4a';
 const screenWidth = Dimensions.get('window').width;
 
 export default function StatsScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const isGuest = user?.id === 'guest';
   const [loading, setLoading] = useState(true);
@@ -412,7 +414,12 @@ export default function StatsScreen() {
             <Text style={styles.cardTitle}> 최근 거래</Text>
           </View>
           {stats.recentTransactions.map((transaction) => (
-            <View key={transaction.id} style={styles.transactionItem}>
+            <TouchableOpacity
+              key={transaction.id}
+              style={styles.transactionItem}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/transaction/${transaction.id}`)}
+            >
               <View style={styles.transactionIcon}>
                 <Ionicons
                   name={transaction.type === 'GIVE' ? 'arrow-up-outline' : 'arrow-down-outline'}
@@ -424,7 +431,7 @@ export default function StatsScreen() {
                 <Text style={styles.transactionName}>{transaction.contact.name}</Text>
                 <Text style={styles.transactionDetail}>
                   {transaction.ledgerGroup.name} •{' '}
-                  {new Date(transaction.eventDate).toLocaleDateString('ko-KR')}
+                  {transaction.eventDate ? new Date(transaction.eventDate).toLocaleDateString('ko-KR') : '—'}
                 </Text>
               </View>
               <Text
@@ -436,7 +443,7 @@ export default function StatsScreen() {
                 {transaction.type === 'RECEIVE' ? '+' : '-'}
                 {transaction.amount.toLocaleString()}원
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
           {stats.recentTransactions.length === 0 && (
             <Text style={styles.emptyText}>최근 거래 내역이 없습니다</Text>

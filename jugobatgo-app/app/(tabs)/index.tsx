@@ -244,8 +244,10 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.transactionList}>
             {transactions.map((transaction, index) => (
-              <View
+              <TouchableOpacity
                 key={transaction.id}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/transaction/${transaction.id}`)}
                 style={[
                   styles.transactionItem,
                   index < transactions.length - 1 && styles.transactionItemBorder,
@@ -264,7 +266,7 @@ export default function HomeScreen() {
                 <View style={styles.transactionDetails}>
                   <Text style={styles.transactionName}>{transaction.contact.name}</Text>
                   <Text style={styles.transactionDesc}>
-                    {transaction.originalName} • {transaction.ledgerGroup.name}
+                    {transaction.originalName || '현금'} • {transaction.ledgerGroup.name}
                   </Text>
                 </View>
                 <Text style={
@@ -273,7 +275,7 @@ export default function HomeScreen() {
                   {transaction.type === 'GIVE' ? '-' : '+'}
                   {transaction.amount.toLocaleString()}원
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}

@@ -13,6 +13,7 @@ export interface Transaction {
   eventDate: string | null;
   createdAt: string;
   updatedAt: string;
+  imageUrl?: string | null;
   contact: {
     id: string;
     name: string;

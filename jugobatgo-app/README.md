@@ -101,6 +101,17 @@ PC가 WiFi가 아닌 유선 랜에 연결된 경우, Expo Go에서 앱을 테스
    npx expo start --tunnel --clear
    ```
 
+**터널 연결이 안 될 때 (백엔드 연결 실패):**
+
+- **터널 URL을 브라우저에서 한 번 열기**  
+  `https://xxx.loca.lt` 주소를 PC나 폰 브라우저에서 열고, 나오는 "Click to Continue" 버튼을 누른 뒤 앱에서 다시 시도해 보세요. (loca.lt는 첫 접속 시 이 페이지를 보여줍니다.)
+- **.env가 적용됐는지 확인**  
+  앱을 `npx expo start --tunnel --clear`로 **끈 다음** .env를 수정했으면, 다시 같은 명령으로 실행해야 합니다. 터널을 다시 띄우면 URL이 바뀌므로, 터널 터미널에 나온 **현재 URL**을 .env에 넣었는지 확인하세요.
+- **백엔드·터널 모두 실행 중인지 확인**  
+  터미널 1: `npm run start:dev`, 터미널 2: `npm run tunnel` 이 둘 다 켜져 있어야 합니다.
+- **URL 형식**  
+  `EXPO_PUBLIC_API_URL=https://xxx.loca.lt` 처럼 `https://` 포함, 끝에 슬래시 없이 넣습니다.
+
 ## 개발 규칙
 
 - TypeScript Strict Mode 사용

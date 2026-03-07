@@ -214,23 +214,22 @@ export default function ContactsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 검색 바 */}
-      <View style={styles.searchSection}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="이름 또는 전화번호로 검색"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* 장부 그룹 필터 */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterSection}
-        contentContainerStyle={styles.filterSectionContent}
-      >
+      {/* 검색 + 필터 (간격 최소화) */}
+      <View style={styles.searchFilterWrap}>
+        <View style={styles.searchSection}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="이름 또는 전화번호로 검색"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterSection}
+          contentContainerStyle={styles.filterSectionContent}
+        >
         <TouchableOpacity
           style={[
             styles.filterChip,
@@ -284,7 +283,8 @@ export default function ContactsScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* 연락처 리스트 */}
       <ScrollView style={styles.listSection}>
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 16,
+    paddingBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -453,32 +453,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
-  searchSection: {
+  searchFilterWrap: {
     paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 0,
+  },
+  searchSection: {
+    marginBottom: 10,
   },
   searchInput: {
     backgroundColor: 'white',
     borderRadius: 10,
-    padding: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     fontSize: 15,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
   filterSection: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 4,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   filterSectionContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 0,
   },
   filterChip: {
     backgroundColor: 'white',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: 12,
     marginRight: 8,
     borderWidth: 1,
@@ -499,7 +503,7 @@ const styles = StyleSheet.create({
   listSection: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 4,
+    paddingTop: 10,
   },
   emptyState: {
     alignItems: 'center',

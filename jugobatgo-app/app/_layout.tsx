@@ -98,6 +98,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="transaction/[id]" options={{ presentation: 'card' }} />
       </Stack>
     </SafeAreaProvider>
   );

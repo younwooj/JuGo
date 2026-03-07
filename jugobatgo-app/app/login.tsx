@@ -10,6 +10,7 @@ import { platform } from '../src/utils/platform';
 import { useRouter } from 'expo-router';
 import { authApi, userApi } from '../src/api/auth';
 import { useAuthStore } from '../src/store/authStore';
+import { API_BASE_URL } from '../src/constants/Config';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -108,17 +109,7 @@ export default function LoginScreen() {
 
         if (authData.user) {
           console.log('사용자 정보:', authData.user);
-          // 이메일 인증 확인
-          if (!authData.user.email_confirmed_at) {
-            console.log('이메일 미인증');
-            setLoading(false);
-            platform.alert(
-              '이메일 인증 필요',
-              '아직 이메일 인증이 완료되지 않았습니다.\n\n받은 메일함을 확인하고 "Confirm your mail" 링크를 클릭해주세요.\n\n메일을 받지 못했다면 스팸함을 확인해보세요.'
-            );
-            return;
-          }
-
+          // Supabase가 로그인을 허용했으면 그대로 진행 (Confirm email 설정은 Supabase에서 처리)
           console.log('백엔드 프로필 생성 중...');
           // 백엔드에 사용자 프로필 생성/가져오기
           const userProfile = await userApi.getOrCreateUserProfile(authData.user);
@@ -151,11 +142,18 @@ export default function LoginScreen() {
       
       if (error.message) {
         if (error.message.includes('Invalid login credentials')) {
-          errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.\n\n이메일 인증을 완료했는지 확인해주세요.';
+          errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
         } else if (error.message.includes('Email not confirmed')) {
           errorMessage = '이메일 인증이 완료되지 않았습니다.\n받은 메일함을 확인해주세요.';
         } else if (error.message.includes('User already registered')) {
           errorMessage = '이미 가입된 이메일입니다.\n로그인을 시도해주세요.';
+        } else if (
+          error.message.includes('user profile') ||
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('Network request failed')
+        ) {
+          errorMessage =
+            '백엔드 서버에 연결할 수 없습니다.\n\njugobatgo-server를 실행한 뒤 다시 로그인해 주세요.\n(터널/원격 사용 시 EXPO_PUBLIC_API_URL 설정 확인)';
         } else {
           errorMessage = error.message;
         }
@@ -180,13 +178,6 @@ export default function LoginScreen() {
 
   const completeTestLogin = async (authData: any) => {
     if (!authData.user) return;
-    if (!authData.user.email_confirmed_at) {
-      platform.alert(
-        '이메일 인증 필요',
-        'Supabase 대시보드 > Authentication > Users에서 test@jugobatgo.com 계정을 찾아 "Confirm email"을 클릭해주세요.\n\n또는 Supabase > Authentication > Providers > Email에서 "Confirm email"을 비활성화한 뒤 계정을 다시 생성해주세요.'
-      );
-      return;
-    }
     try {
       const userProfile = await userApi.getOrCreateUserProfile(authData.user);
       setUser({
@@ -199,9 +190,13 @@ export default function LoginScreen() {
       }
       router.replace('/');
     } catch (backendError: any) {
+      const isTunnel = API_BASE_URL.includes('loca.lt');
+      const tip = isTunnel
+        ? '\n\n[터널 사용 시]\n• 터널 URL을 브라우저에서 한 번 열어 "Click to Continue" 후 다시 시도\n• .env의 EXPO_PUBLIC_API_URL이 터널 터미널에 나온 URL과 같은지 확인\n• 터널 재실행 시 URL이 바뀌므로 .env 수정 후 앱 재시작(—clear 권장)'
+        : '';
       platform.alert(
         '백엔드 연결 실패',
-        '로그인은 성공했지만 백엔드 서버에 연결할 수 없습니다.\n\n"게스트로 둘러보기"를 사용하시거나, 백엔드 실행 후 다시 시도해주세요.'
+        '로그인은 성공했지만 백엔드 서버에 연결할 수 없습니다.\n\n"게스트로 둘러보기"를 사용하시거나, 백엔드 실행 후 다시 시도해주세요.' + tip
       );
     }
   };
@@ -271,9 +266,12 @@ export default function LoginScreen() {
           router.replace('/');
         } catch (backendError: any) {
           setLoading(false);
+          const tip = API_BASE_URL.includes('loca.lt')
+            ? '\n\n[터널 사용 시] 터널 URL을 브라우저에서 한 번 열어 "Click to Continue" 후 다시 시도해 보세요.'
+            : '';
           platform.alert(
             '백엔드 연결 필요',
-            '계정이 생성되었지만 백엔드 서버를 먼저 실행해주세요.\n\n(jugobatgo-server에서 npm run start:dev 실행 후 "테스트 계정으로 로그인" 시도)'
+            '계정이 생성되었지만 백엔드 서버를 먼저 실행해주세요.\n\n(jugobatgo-server에서 npm run start:dev 실행 후 "테스트 계정으로 로그인" 시도)' + tip
           );
         }
       } else {

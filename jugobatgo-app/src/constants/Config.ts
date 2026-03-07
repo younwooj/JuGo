@@ -44,6 +44,10 @@ function getApiBaseUrl(): string {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+if (__DEV__ && typeof console !== 'undefined') {
+  console.log('[Config] API_BASE_URL:', API_BASE_URL);
+}
+
 // 색상 상수
 export const Colors = {
   primary: '#ef4444',
