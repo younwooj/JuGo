@@ -262,7 +262,10 @@ export default function StatsScreen() {
         {/* 월별 추이 차트 */}
         {giveData.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>📊 월별 추이</Text>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="stats-chart-outline" size={20} color="#374151" />
+              <Text style={styles.cardTitle}>월별 추이</Text>
+            </View>
             <Text style={styles.chartSubtitle}>최근 12개월 거래 내역</Text>
             
             <View style={styles.chartContainer}>
@@ -314,7 +317,10 @@ export default function StatsScreen() {
         {/* 카테고리별 파이 차트 */}
         {pieData.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>🎯 카테고리별 비중</Text>
+            <View style={styles.cardTitleRow}>
+              <Ionicons name="pie-chart-outline" size={20} color="#374151" />
+              <Text style={styles.cardTitle}>카테고리별 비중</Text>
+            </View>
             <Text style={styles.chartSubtitle}>거래 유형별 분포</Text>
 
             <View style={styles.pieChartContainer}>
@@ -351,12 +357,22 @@ export default function StatsScreen() {
 
         {/* 카테고리별 통계 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>💰 카테고리별 상세</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="list-outline" size={20} color="#374151" />
+            <Text style={styles.cardTitle}>카테고리별 상세</Text>
+          </View>
           {Object.entries(categoryStats).map(([category, data]) => (
             <View key={category} style={styles.categoryItem}>
-              <Text style={styles.categoryName}>
-                {category === 'CASH' ? '💵 현금' : category === 'GIFT' ? '🎁 선물' : '💰 금'}
-              </Text>
+              <View style={styles.categoryNameRow}>
+                <Ionicons
+                  name={category === 'CASH' ? 'cash-outline' : category === 'GIFT' ? 'gift-outline' : 'diamond-outline'}
+                  size={18}
+                  color="#374151"
+                />
+                <Text style={styles.categoryName}>
+                  {category === 'CASH' ? '현금' : category === 'GIFT' ? '선물' : '금'}
+                </Text>
+              </View>
               <View style={styles.categoryStats}>
                 <Text style={styles.categoryStatText}>
                   받음: <Text style={{ color: '#10b981' }}>+{data.receive.toLocaleString()}원</Text>
@@ -372,7 +388,10 @@ export default function StatsScreen() {
 
         {/* Top 연락처 */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>👥 많이 거래한 사람 Top 10</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="people-outline" size={20} color="#374151" />
+            <Text style={styles.cardTitle}>많이 거래한 사람 Top 10</Text>
+          </View>
           {topContacts.map((contact, index) => (
             <View key={contact.id} style={styles.contactItem}>
               <View style={[
@@ -411,7 +430,7 @@ export default function StatsScreen() {
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
             <Ionicons name="document-text-outline" size={20} color="#374151" />
-            <Text style={styles.cardTitle}> 최근 거래</Text>
+            <Text style={styles.cardTitle}>최근 거래</Text>
           </View>
           {stats.recentTransactions.map((transaction) => (
             <TouchableOpacity
@@ -637,11 +656,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
+  categoryNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   categoryName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 8,
   },
   categoryStats: {
     flexDirection: 'row',
