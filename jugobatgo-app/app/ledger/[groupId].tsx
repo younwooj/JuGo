@@ -182,6 +182,7 @@ export default function LedgerDetailScreen() {
           <Text style={styles.txTypeText}>{item.type === 'GIVE' ? '준 금액' : '받은 금액'}</Text>
         </View>
         <Text style={styles.txContact}>{item.contact?.name}</Text>
+        <Text style={styles.txDate}>{formatDate(item.eventDate || item.createdAt)}</Text>
         {item.memo ? <Text style={styles.txMemo} numberOfLines={1}>{item.memo}</Text> : null}
       </View>
       <Text
@@ -510,6 +511,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#111827',
+  },
+  txDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
   },
   txMemo: {
     fontSize: 13,

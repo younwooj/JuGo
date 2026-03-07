@@ -187,7 +187,7 @@ export default function LedgerListScreen() {
       <View style={styles.groupsSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>장부 그룹</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/add-transaction')} activeOpacity={0.7}>
             <Text style={styles.addButtonText}>+ 추가</Text>
           </TouchableOpacity>
         </View>

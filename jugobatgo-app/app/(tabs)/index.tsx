@@ -268,6 +268,13 @@ export default function HomeScreen() {
                   <Text style={styles.transactionDesc}>
                     {transaction.originalName || '현금'} • {transaction.ledgerGroup.name}
                   </Text>
+                  <Text style={styles.transactionDate}>
+                    {new Date(transaction.eventDate || transaction.createdAt).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </Text>
                 </View>
                 <Text style={
                   transaction.type === 'GIVE' ? styles.giveAmountText : styles.receiveAmountText
@@ -562,6 +569,11 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 14,
     marginTop: 2,
+  },
+  transactionDate: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginTop: 4,
   },
   giveAmountText: {
     color: '#dc2626',
