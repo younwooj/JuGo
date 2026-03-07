@@ -49,8 +49,8 @@ export default function AddTransactionScreen() {
   // 금 거래 전용 상태
   const [goldKarat, setGoldKarat] = useState<'24K' | '18K' | '14K'>('24K');
   const [goldWeight, setGoldWeight] = useState('');
+  const [goldWeightUnit, setGoldWeightUnit] = useState<'don' | 'g' | 'oz_t'>('g');
   const [goldPricePerGram, setGoldPricePerGram] = useState(0);
-  const [goldAutoConvert, setGoldAutoConvert] = useState(true);
 
   useEffect(() => {
     loadInitialData();
@@ -114,13 +114,29 @@ export default function AddTransactionScreen() {
     }
   }, [searchQuery, contacts]);
   
-  useEffect(() => {
-    // 금 무게 입력 시 자동 금액 계산
-    if (category === 'GOLD' && goldAutoConvert && goldWeight && goldPricePerGram > 0) {
-      const calculatedAmount = Math.round(parseFloat(goldWeight) * goldPricePerGram);
-      setAmount(calculatedAmount.toString());
+  // 단위별 그램 환산: 1돈 = 3.75g, 1 oz t = 31.1035g
+  const goldWeightToGrams = (value: number): number => {
+    switch (goldWeightUnit) {
+      case 'don': return value * 3.75;
+      case 'oz_t': return value * 31.1035;
+      default: return value;
     }
-  }, [goldWeight, goldPricePerGram, goldKarat, goldAutoConvert, category]);
+  };
+
+  const applyGoldAmount = () => {
+    const w = parseFloat(goldWeight);
+    if (!Number.isFinite(w) || w <= 0) {
+      platform.alert('입력 오류', '금 무게를 입력해주세요.');
+      return;
+    }
+    if (goldPricePerGram <= 0) {
+      platform.alert('오류', '금 시세를 불러온 뒤 다시 시도해주세요.');
+      return;
+    }
+    const grams = goldWeightToGrams(w);
+    const calculatedAmount = Math.round(grams * goldPricePerGram);
+    setAmount(calculatedAmount.toString());
+  };
 
   const loadInitialData = async () => {
     try {
@@ -532,8 +548,8 @@ export default function AddTransactionScreen() {
           </View>
         </View>
 
-        {/* AI 이미지 분석 (선물/금 선택시) */}
-        {category !== 'CASH' && (
+        {/* AI 이미지 분석 (선물 선택시만) */}
+        {category === 'GIFT' && (
           <View style={styles.formGroup}>
             <Text style={styles.label}>📸 AI 가격 추정</Text>
             <TouchableOpacity
@@ -568,27 +584,27 @@ export default function AddTransactionScreen() {
           </View>
         )}
 
-        {/* 금액 입력 */}
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>금액 (원) *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="예: 100000"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
-        </View>
-
-        {/* 선물명 (선물/금 선택시만) */}
-        {category !== 'CASH' && (
+        {/* 금액 입력 (현금/선물일 때만 상단에 표시) */}
+        {category !== 'GOLD' && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>
-              {category === 'GIFT' ? '선물명' : '금 정보'}
-            </Text>
+            <Text style={styles.label}>금액 (원) *</Text>
             <TextInput
               style={styles.input}
-              placeholder={category === 'GIFT' ? '예: 정관장 홍삼' : '예: 24K 3.75돈'}
+              placeholder="예: 100000"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="numeric"
+            />
+          </View>
+        )}
+
+        {/* 선물명 (선물 선택시만) */}
+        {category === 'GIFT' && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>선물명</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="예: 정관장 홍삼"
               value={giftName}
               onChangeText={setGiftName}
             />
@@ -649,24 +665,53 @@ export default function AddTransactionScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* 금 무게 입력 */}
+            {/* 금 무게 입력 + 단위 선택 */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>금 무게 (g)</Text>
+              <Text style={styles.label}>금 무게 *</Text>
               <View style={styles.goldWeightRow}>
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
-                  placeholder="예: 3.75"
+                  placeholder={goldWeightUnit === 'don' ? '예: 3.75' : goldWeightUnit === 'oz_t' ? '예: 1' : '예: 14'}
                   value={goldWeight}
                   onChangeText={setGoldWeight}
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.goldWeightUnit}>g (그램)</Text>
+                <View style={styles.goldUnitGroup}>
+                  <TouchableOpacity
+                    style={[styles.goldUnitButton, goldWeightUnit === 'don' && styles.goldUnitButtonActive]}
+                    onPress={() => setGoldWeightUnit('don')}
+                  >
+                    <Text style={[styles.goldUnitText, goldWeightUnit === 'don' && styles.goldUnitTextActive]}>돈</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.goldUnitButton, goldWeightUnit === 'g' && styles.goldUnitButtonActive]}
+                    onPress={() => setGoldWeightUnit('g')}
+                  >
+                    <Text style={[styles.goldUnitText, goldWeightUnit === 'g' && styles.goldUnitTextActive]}>g</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.goldUnitButton, goldWeightUnit === 'oz_t' && styles.goldUnitButtonActive]}
+                    onPress={() => setGoldWeightUnit('oz_t')}
+                  >
+                    <Text style={[styles.goldUnitText, goldWeightUnit === 'oz_t' && styles.goldUnitTextActive]}>oz t</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              {goldWeight && goldPricePerGram > 0 && (
-                <Text style={styles.goldWeightHint}>
-                  💡 자동 계산: {(parseFloat(goldWeight) * goldPricePerGram).toLocaleString()}원
-                </Text>
-              )}
+              <TouchableOpacity style={styles.goldApplyButton} onPress={applyGoldAmount}>
+                <Text style={styles.goldApplyButtonText}>금액 계산</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 금액 (원) - 금 선택 시 버튼 아래에 표시 */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>금액 (원) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="예: 100000 (금액 계산 버튼으로 채움)"
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+              />
             </View>
           </>
         )}
@@ -960,15 +1005,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  goldWeightUnit: {
-    fontSize: 16,
+  goldUnitGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  goldUnitButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+  },
+  goldUnitButtonActive: {
+    backgroundColor: '#fbbf24',
+    borderColor: '#f59e0b',
+  },
+  goldUnitText: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#6b7280',
   },
-  goldWeightHint: {
-    fontSize: 14,
-    color: '#059669',
-    marginTop: 8,
+  goldUnitTextActive: {
+    color: '#92400e',
+  },
+  goldApplyButton: {
+    marginTop: 12,
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+  },
+  goldApplyButtonText: {
+    fontSize: 16,
     fontWeight: '600',
+    color: '#fff',
   },
 });
